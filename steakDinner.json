@@ -1,0 +1,17 @@
+{
+    "date": {
+        "year": 2024,
+        "month": 12,
+        "day": 4
+    },
+    "ingredients": [
+        "steak",
+        "potatoes",
+        "asparagus"
+    ],
+    "fat": 32.0,
+    "protein": 83.7,
+    "calories": 1200.3,
+    "carbs": 92.1,
+    "mealName": "Steak dinner"
+}

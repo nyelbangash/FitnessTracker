@@ -1,0 +1,173 @@
+{
+    "workoutLog": {
+        "workoutCount": 1,
+        "totalWorkoutTime": 70.0,
+        "workouts": [
+            {
+                "workoutName": "Arms Day 1",
+                "exercises": [
+                    {
+                        "sets": [
+                            {
+                                "weight": 35.0,
+                                "reps": 12
+                            },
+                            {
+                                "reps": 10,
+                                "weight": 35.0
+                            },
+                            {
+                                "weight": 35.0,
+                                "reps": 8
+                            },
+                            {
+                                "weight": 20.0,
+                                "reps": 12
+                            }
+                        ],
+                        "exerciseName": "Dumbell Curls"
+                    },
+                    {
+                        "exerciseName": "Tricep extensions",
+                        "sets": [
+                            {
+                                "weight": 100.0,
+                                "reps": 15
+                            },
+                            {
+                                "reps": 15,
+                                "weight": 100.0
+                            },
+                            {
+                                "weight": 100.0,
+                                "reps": 14
+                            },
+                            {
+                                "weight": 100.0,
+                                "reps": 12
+                            },
+                            {
+                                "reps": 15,
+                                "weight": 80.0
+                            }
+                        ]
+                    },
+                    {
+                        "sets": [
+                            {
+                                "weight": 20.0,
+                                "reps": 8
+                            },
+                            {
+                                "reps": 8,
+                                "weight": 20.0
+                            },
+                            {
+                                "weight": 20.0,
+                                "reps": 8
+                            }
+                        ],
+                        "exerciseName": "Tricep Kickbacks"
+                    }
+                ],
+                "dateCreated": {
+                    "year": 2024,
+                    "month": 12,
+                    "day": 7
+                },
+                "lengthOfWorkout": 70.0
+            }
+        ]
+    },
+    "mealLog": {
+        "meals": [
+            {
+                "date": {
+                    "year": 2024,
+                    "month": 12,
+                    "day": 7
+                },
+                "ingredients": [
+                    "eggs",
+                    "steak",
+                    "avacado",
+                    "celcius"
+                ],
+                "fat": 34.0,
+                "protein": 54.4,
+                "calories": 656.3,
+                "carbs": 43.2,
+                "mealName": "Meal 1"
+            },
+            {
+                "mealName": "Meal 2",
+                "carbs": 100.0,
+                "calories": 932.0,
+                "protein": 62.1,
+                "fat": 29.0,
+                "ingredients": [
+                    "pasta",
+                    "beef",
+                    "squash"
+                ],
+                "date": {
+                    "day": 7,
+                    "month": 12,
+                    "year": 2024
+                }
+            },
+            {
+                "date": {
+                    "year": 2024,
+                    "month": 12,
+                    "day": 7
+                },
+                "ingredients": [
+                    "yogurt",
+                    "fruit",
+                    "granola",
+                    "honey"
+                ],
+                "fat": 50.1,
+                "protein": 40.2,
+                "calories": 403.2,
+                "carbs": 30.4,
+                "mealName": "Snack"
+            },
+            {
+                "date": {
+                    "year": 2024,
+                    "month": 12,
+                    "day": 7
+                },
+                "ingredients": [
+                    "pasta",
+                    "beef",
+                    "squash"
+                ],
+                "fat": 30.0,
+                "protein": 60.0,
+                "calories": 732.0,
+                "carbs": 70.0,
+                "mealName": "Meal 3"
+            }
+        ],
+        "mealCount": 4,
+        "totalFat": 143.1,
+        "totalCarbs": 243.6,
+        "totalProtein": 216.7,
+        "totalCalories": 2723.5
+    },
+    "username": "jdoe",
+    "weight": 220.0,
+    "dateAccountCreated": {
+        "year": 2024,
+        "month": 12,
+        "day": 7
+    },
+    "height": 78.0,
+    "age": 34,
+    "password": "jdoe112",
+    "lastName": "Doe",
+    "firstName": "John"
+}

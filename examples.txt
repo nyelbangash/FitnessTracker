@@ -1,0 +1,131 @@
+VIEW THE USER'S WORKOUT LOG:
+curl -X GET "http://localhost:15963/workout-api/workoutlog?username=janedoe&password=janedoe1234"
+curl -X GET "http://localhost:15963/workout-api/workoutlog?username=jdoe&password=jdoe112"
+
+VIEW THE USER'S MEAL LOG:
+curl -X GET "http://localhost:15963/workout-api/meallog?username=janedoe&password=janedoe1234"
+curl -X GET "http://localhost:15963/workout-api/meallog?username=jdoe&password=jdoe112"
+
+VIEW THE USER'S PROFILE INFORMATION (EXCLUDING LOGS):
+curl -X GET "http://localhost:15963/workout-api/profile?username=janedoe&password=janedoe1234&limited-view=true"
+curl -X GET "http://localhost:15963/workout-api/profile?username=jdoe&password=jdoe112&limited-view=true"
+
+VIEW THE USER'S ENTIRE PROFILE:
+curl -X GET "http://localhost:15963/workout-api/profile?username=janedoe&password=janedoe1234&limited-view=false"
+curl -X GET "http://localhost:15963/workout-api/profile?username=jdoe&password=jdoe112&limited-view=false"
+
+VIEW THE USER'S WORKOUTS ON A GIVEN DATE:
+curl -X GET "http://localhost:15963/workout-api/workout/07-12-2024?username=janedoe&password=janedoe1234"
+curl -X GET "http://localhost:15963/workout-api/workout/06-12-2024?username=janedoe&password=janedoe1234"
+
+VIEW THE USER'S MEALS ON A GIVEN DATE:
+curl -X GET "http://localhost:15963/workout-api/meal/07-12-2024?username=jdoe&password=jdoe112"
+curl -X GET "http://localhost:15963/workout-api/meal/06-12-2024?username=jdoe&password=jdoe112"
+
+UPDATE THE USER'S PROFILE INFORMATION:
+curl -X PUT \
+    "http://localhost:15963/workout-api/profile?username=jdoe&password=jdoe112" \
+    -H "Content-Type: application/json" \
+    -d '{
+    "username": "johndoe",
+    "password": "johndoe1234",
+    "weight": 225.0,
+    "height": 78.2,
+    "age": 35,
+    "lastName": "Doe",
+    "firstName": "John"
+}'
+
+
+ADD A STEAK DINNER TO THE USER'S MEAL LOG:
+curl -X PUT \
+  "http://localhost:15963/workout-api/meallog?username=janedoe&password=janedoe1234" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "date": {
+        "year": 2024,
+        "month": 12,
+        "day": 4
+    },
+    "ingredients": [
+        "steak",
+        "potatoes",
+        "asparagus"
+    ],
+    "fat": 32.0,
+    "protein": 83.7,
+    "calories": 1200.3,
+    "carbs": 92.1,
+    "mealName": "Steak dinner"
+}'
+
+ADD A PULL DAY WORKOUT TO THE USER'S WORKOUT LOG:
+curl -X PUT \
+    "http://localhost:15963/workout-api/workoutlog?username=janedoe&password=janedoe1234" \
+    -H "Content-Type: application/json" \
+    -d '{
+    "workoutName": "Pull Day 1",
+    "exercises": [
+        {
+            "sets": [
+                {
+                    "weight": 140.0,
+                    "reps": 13
+                },
+                {
+                    "reps": 12,
+                    "weight": 140.0
+                },
+                {
+                    "weight": 135.0,
+                    "reps": 12
+                }
+            ],
+            "exerciseName": "Lat rows"
+        },
+        {
+            "exerciseName": "Pullups",
+            "sets": [
+                {
+                    "reps": 5,
+                    "weight": 0.0
+                },
+                {
+                    "weight": 0.0,
+                    "reps": 5
+                },
+                {
+                    "reps": 4,
+                    "weight": 0.0
+                }
+            ]
+        },
+        {
+            "sets": [
+                {
+                    "weight": 12.0,
+                    "reps": 30
+                },
+                {
+                    "reps": 30,
+                    "weight": 11.0
+                },
+                {
+                    "weight": 12.0,
+                    "reps": 25
+                },
+                {
+                    "weight": 14.0,
+                    "reps": 15
+                }
+            ],
+            "exerciseName": "Curls"
+        }
+    ],
+    "dateCreated": {
+        "year": 2024,
+        "month": 12,
+        "day": 7
+    },
+    "lengthOfWorkout": 145.23
+}'
