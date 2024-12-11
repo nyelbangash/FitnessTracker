@@ -13,6 +13,8 @@ public:
      * 
      * @param reps An integer of the number of reps completed in the set
      * @param weight A double of the amount of weight used in the set
+     * 
+     * @throws std::invalid_argument if reps <= 0 or weight < 0
      */
     Set(const int reps, const double weight);
 

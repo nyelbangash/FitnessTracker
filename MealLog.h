@@ -27,6 +27,8 @@ public:
      * @param totalProtein A double of the total protein accross all meals.
      * @param totalCarbs A double of the total carbs accross all meals.
      * @param totalFat A double of the total calories accross all meals.
+     * 
+     * @throws std::invalid_argument if totalCalories, totalProtein, totalCarbs, or totalFat < 0.
      */
     MealLog(std::vector<Meal> meals, double totalCalories, double totalProtein, double totalCarbs, double totalFat);
 

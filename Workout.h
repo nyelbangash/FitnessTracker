@@ -15,6 +15,8 @@ public:
      * @param exercises A reference to a vector of type exercises.
      * @param workoutName A string of the workout name.
      * @param lengthOfWorkout A double of the length of the workout.
+     * 
+     * @throws std::invalid_argument if exercises or workoutName is empty or id lengthOfWorkout <= 0
      */
     Workout(const std::vector<Exercise>& exercises, const std::string& workoutName, double lengthOfWorkout);
 
@@ -25,6 +27,7 @@ public:
      * @param workoutName A constant string of the workout name.
      * @param lengthOfWorkout A double of the length of the workout.
      * @param dateWorkedOut A constant reference to a Date object of the date worked out.
+     * @throws std::invalid_argument if exercises or workoutName is empty or id lengthOfWorkout <= 0
      */
     Workout(const std::vector<Exercise>& exercises, const std::string& workoutName, double lengthOfWorkout, const Date& dateWorkedOut);
     

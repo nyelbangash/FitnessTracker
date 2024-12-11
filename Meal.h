@@ -18,6 +18,8 @@ public:
      * @param carbs A double of the number of grams of carbs in the meal.
      * @param fat A double of the number of grams of fat in the meal.
      * @param ingredients A constant reference to a vector of strings of the ingredients that comprise the meal.
+     * 
+     * @throws std::invalid_argument if mealName or ingredients is empty, or if calories, protein, carbs, or fat < 0.
      */
     Meal(const std::string& mealName, double calories, double protein, double carbs, double fat, const std::vector<std::string>& ingredients);
     
@@ -31,6 +33,8 @@ public:
      * @param fat A double of the number of grams of fat in the meal.
      * @param ingredients A constant reference to a vector of strings of the ingredients that comprise the meal.
      * @param date A constant reference to a `Date` object of the date the meal was eaten.
+     * 
+     * @throws std::invalid_argument if mealName or ingredients is empty, or if calories, protein, carbs, or fat < 0.
      */
     Meal(const std::string& mealName, double calories, double protein, double carbs, double fat, const std::vector<std::string>& ingredients, const Date& date);
 

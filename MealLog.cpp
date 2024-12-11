@@ -9,7 +9,7 @@ MealLog::MealLog(std::vector<Meal> meals, double totalCalories, double totalProt
         totalCarbs(totalCarbs),
         totalFat(totalFat) 
 {
-    // Log will check to ensure entries/meals is valid
+    // meals is allowed to be empty
 
     if(totalCalories < 0.0)
         throw std::invalid_argument("Total calories cannot be negative.");

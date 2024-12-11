@@ -29,6 +29,8 @@ public:
      * @param lastName A constant reference to a string of the user's last name.
      * @param username A constant reference to a string of the user's username.
      * @param password A constant reference to a string of the user's password.
+     * 
+     * @throws std::invalid_argument if height or weight <= 0, or if firstName, lastName, username, or password are empty
      */
     Profile(const Date& dateOfBirth, const double height, const double weight, 
             const std::string& firstName, const std::string& lastName, 
@@ -48,6 +50,8 @@ public:
      * @param password A constant reference to a string of the user's password.
      * @param workoutLog A constant reference to a `WorkoutLog` object of the user's workout log.
      * @param mealLog A constant reference to a `MealLog` object of the user's meal log.
+     * 
+     * @throws std::invalid_argument if height or weight <= 0, or if firstName, lastName, username, or password are empty
      */
     Profile(const Date& dateOfBirth, const double height, const double weight,
             const std::string& firstName, const std::string& lastName,
@@ -141,6 +145,8 @@ public:
      * @brief Updates the user's height.
      * 
      * @param height A double of the user's height in cm's.
+     * 
+     * @throws std::invalid_argument if height <= 0
      */
     void updateHeight(const double height);
 
@@ -148,6 +154,8 @@ public:
      * @brief Updates the user's weight.
      * 
      * @param weight A double of the user's weight in kg's.
+     * 
+     * @throws std::invalid_argument if weight <= 0
      */
     void updateWeight(const double weight);
 
@@ -155,6 +163,8 @@ public:
      * @brief Updates the user's first name.
      * 
      * @param firstName A constant reference of a string of the user's first name.
+     * 
+     * @throws std::invalid_argument if firstName is empty
      */
     void updateFirstName(const std::string& firstName);
 
@@ -162,6 +172,8 @@ public:
      * @brief Updates the user's last name.
      * 
      * @param lastName A constant reference of a string of the user's last name.
+     * 
+     * @throws std::invalid_argument if lastName is empty
      */
     void updateLastName(const std::string& lastName);
 
@@ -169,6 +181,8 @@ public:
      * @brief Updates the user's username.
      * 
      * @param username A constant reference of a string of the user's usernmae.
+     * 
+     * @throws std::invalid_argument if username is empty
      */
     void updateUsername(const std::string& username);
 
@@ -176,6 +190,8 @@ public:
      * @brief Updates the user's password.
      * 
      * @param password A constant reference of a string of the user's password.
+     * 
+     * @throws std::invalid_argument if password is empty
      */
     void updatePassword(const std::string& password);
     
@@ -183,6 +199,8 @@ public:
      * @brief A getter for the user's workout log.
      * 
      * @return A reference to a `WorkoutLog` object of the user's workout log.
+     * 
+     * @throws std::invalid_argument if password is empty
      */
     WorkoutLog& getWorkoutLog();
 

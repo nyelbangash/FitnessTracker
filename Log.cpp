@@ -4,11 +4,7 @@
 
 
 template <typename T>
-Log<T>::Log(const std::vector<T>& entries) : entries(entries) 
-{
-    if(entries.empty())
-        throw std::invalid_argument("Cannot provide an empty entries list.");
-};
+Log<T>::Log(const std::vector<T>& entries) : entries(entries) {};
 
 template <typename T>
 const std::vector<T> Log<T>::getEntries() const { return entries; }

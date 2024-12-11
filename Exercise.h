@@ -17,7 +17,9 @@ public:
      * @brief Constructs an `Exercise` object, with an initial set of sets and an exercise name.
      * 
      * @param sets A constant reference to a vector of type `Set`containing the sets that comprise the exercise.
-     * @param exerciseName A constant reference to a string of the name of the exercise
+     * @param exerciseName A constant reference to a string of the name of the exercise.
+     * 
+     * @throws std::invalid_argument if sets or exerciseName is empty 
      */
     Exercise(const std::vector<Set>& sets, const std::string& exerciseName);
 

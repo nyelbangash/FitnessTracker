@@ -24,6 +24,8 @@ public:
      *
      * @param workouts A constant reference to a vector of type `Workout` containing workout entries.
      * @param totalWorkoutTime A double of the total time worked out across all workouts in the initial set.
+     * 
+     * @throws std::invalid_argument if totalWorkoutTime <= 0
      */
     WorkoutLog(const std::vector<Workout>& workouts, double totalWorkoutTime);
 

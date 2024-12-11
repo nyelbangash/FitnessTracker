@@ -16,6 +16,8 @@ public:
      * @param day An integer of day.
      * @param month An integer of the month.
      * @param An integer of the year.
+     * 
+     * @throws std::invalid_argument if the day, month, or year (1900 - present) is not valid
      */
     Date(const int day, const int month, const int year);
     

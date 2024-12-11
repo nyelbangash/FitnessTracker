@@ -4,7 +4,7 @@
 
 WorkoutLog::WorkoutLog(const std::vector<Workout>& workouts, double totalWorkoutTime) : Log<Workout>(workouts), totalWorkoutTime(totalWorkoutTime) 
 {
-    // Log class handles invalid entries/workout vector
+    // workouts is allowed to be empty
 
     if(totalWorkoutTime < 0.0)
         throw std::invalid_argument("Total workout time cannot be negative.");
