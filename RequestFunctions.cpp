@@ -271,7 +271,7 @@ response updateProfile(const request& req)
         usersProfile->updatePassword(readValueJson["password"].s());
         usersProfile->updateWeight(readValueJson["weight"].d());
         usersProfile->updateHeight(readValueJson["height"].d());
-        usersProfile->updateDateOfBirth(convertJsonToDate(readValueJson["age"]));
+        usersProfile->updateDateOfBirth(convertJsonToDate(readValueJson["dateOfBirth"]));
         usersProfile->updateLastName(readValueJson["lastName"].s());
         usersProfile->updateFirstName(readValueJson["firstName"].s());
 

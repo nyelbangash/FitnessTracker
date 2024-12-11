@@ -145,7 +145,7 @@ Date convertJsonToDate(const json::rvalue& dateJson)
         int day = dateJson["day"].i();
         int month = dateJson["month"].i();
         int year = dateJson["year"].i();
-        return Date(day, month, year);
+        return Date(month, day, year);
     } catch (const exception& e) {
         throw invalid_argument("Invalid date values in JSON");
     }

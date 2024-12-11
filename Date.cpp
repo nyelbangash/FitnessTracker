@@ -10,7 +10,7 @@ Date::Date()
     year = localTime->tm_year + 1900;
 }
 
-Date::Date(const int day, const int month, const int year) 
+Date::Date(const int month, const int day, const int year) 
     : day(day), month(month), year(year)
 {
     if (month < 1 || month > 12)

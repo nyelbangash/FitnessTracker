@@ -15,7 +15,7 @@ curl -X GET "http://localhost:15963/workout-api/profile?username=janedoe&passwor
 curl -X GET "http://localhost:15963/workout-api/profile?username=jdoe&password=jdoe112&limited-view=false"
 
 VIEW THE USER'S WORKOUTS ON A GIVEN DATE:
-curl -X GET "http://localhost:15963/workout-api/workout/07-12-2024?username=janedoe&password=janedoe1234"
+curl -X GET "http://localhost:15963/workout-api/workout/12-11-2024?username=janedoe&password=janedoe1234"
 curl -X GET "http://localhost:15963/workout-api/workout/06-12-2024?username=janedoe&password=janedoe1234"
 
 VIEW THE USER'S MEALS ON A GIVEN DATE:
@@ -31,7 +31,11 @@ curl -X PUT \
     "password": "johndoe1234",
     "weight": 225.0,
     "height": 78.2,
-    "age": 35,
+    "dateOfBirth": {
+        "day": 15,
+        "month": 3,
+        "year": 2022
+    },
     "lastName": "Doe",
     "firstName": "John"
 }'

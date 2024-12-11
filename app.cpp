@@ -22,8 +22,6 @@ int main()
         allProfiles.push_back(convertJsonToProfile(profileJson));
     }
 
-    
-
     // Setup the simple web service.
     SimpleApp app;
 
@@ -58,8 +56,72 @@ int main()
     
     return 0;
 }
+    /*
+    // push day
+    Set benchSet1{4, 225};
+    Set benchSet2{4, 215};
+    Set benchSet3{3, 205};
+    vector<Set> benchSets = {benchSet1, benchSet2, benchSet3};
+    Exercise bench{benchSets, "Bench press"};
 
-    /* SETTING UP A TEST USER 
+    Set pdSet1{12, 90};
+    Set pdSet2{12, 90};
+    Set pdSet3{12, 90};
+    Set pdSet4{11, 90};
+    vector<Set> pushdownSets = {pdSet1, pdSet2, pdSet3, pdSet4};
+    Exercise pushdowns{pushdownSets, "Pushdowns"};
+
+    vector<Exercise> pushDayExercises = {bench, pushdowns};
+
+    Workout pushDay{pushDayExercises, "Push Day 1", 134.55};
+
+
+    // leg day
+    Set squatSet1{5, 305};
+    Set squatSet2{5, 305};
+    Set squatSet3{4, 305};
+    Set squatSet4{5, 225};
+    vector<Set> squatSets = {squatSet1, squatSet2, squatSet3, squatSet4};
+    Exercise squat{squatSets, "Squat"};
+
+    Set legExtensionSet1{6, 200};
+    Set legExtensionSet2{5, 200};
+    Set legExtensionSet3{4, 200};
+    vector<Set> legExtensionSets = {legExtensionSet1, legExtensionSet2, legExtensionSet3};
+    Exercise legExtensions{legExtensionSets, "Leg extensions"};
+
+    vector<Exercise> legDayExercises = {squat, legExtensions};
+
+    Workout legDay{legDayExercises, "Leg Day 1", 156.45};
+
+    // breakfast
+    vector<string> breakfastIngredients = {"eggs", "bacon", "toast", "coffee"};
+    Meal breakfast{"Breakfast", 652.3, 48.7, 57, 25, breakfastIngredients};
+
+    // lunch
+    vector<string> lunchIngredients = {"rice", "chicken", "broccili"};
+    Meal lunch{"Lunch", 1045.3, 67.3, 107, 39, lunchIngredients};
+
+    Date bod = Date(7, 30, 2000);
+    // user profile
+    Profile* janeDoe = new Profile(bod, 63, 105.6, "Jane", "Doe", "janedoe", "janedoe1234");
+
+    // add to global list of users
+    allProfiles.push_back(janeDoe);
+
+    // add workouts
+    janeDoe->getWorkoutLog().addEntry(pushDay);
+    janeDoe->getWorkoutLog().addEntry(legDay);
+
+    // add meal
+    janeDoe->getMealLog().addEntry(breakfast);
+    janeDoe->getMealLog().addEntry(lunch);
+
+    cout << "\n\n" << convertProfileToJsonFull(*janeDoe).dump() << "\n\n" << endl;
+    */
+      
+    /* 
+    SETTING UP A TEST USER 
     // push day
     Set benchSet1{4, 225};
     Set benchSet2{4, 215};
@@ -182,4 +244,4 @@ int main()
     johnDoe->getMealLog().addMeal(dinner);
 
     cout << "\n\n" << convertProfileToJsonFull(*johnDoe).dump() << "\n\n" << endl;
-   */
+  */
