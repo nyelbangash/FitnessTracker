@@ -18,7 +18,7 @@ Date::Date(const int day, const int month, const int year)
     if (day < 1 || day > 31)
         throw std::invalid_argument("Day must be between 1 and 31");
     if (year < 1900 || year > getCurrentYear())
-        throw std::invalid_argument("Year must be later than 1900 up untill the present year");
+        throw std::invalid_argument("Year must be later than 1900 up until the present year");
 }
 
 const int Date::getCurrentYear()

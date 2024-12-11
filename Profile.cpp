@@ -25,6 +25,9 @@ Profile::Profile(const Date& dateOfBirth, const double height, const double weig
           workoutLog(workoutLog), 
           mealLog(mealLog) 
 {
+    // dont have to check validity of date because you cant create an invalid date to begin with
+    // dont have to check validity of mealLog because you cant create an invalid mealLog to begin with
+    // dont have to check validity of workoutLog because you cant create an invalid workoutLog to begin with
     validateProfileData();
 }
 
@@ -47,6 +50,8 @@ int Profile::getAge() const
 
 int Profile::getAge(const Date& dateOfBirth)
 {
+    // dont have to check validity of date because you cant create an invalid date to begin with
+
     // Get today's date
     Date today = Date();
 
@@ -73,22 +78,67 @@ const Date& Profile::getDateAccountCreated() const { return dateAccountCreated; 
 WorkoutLog& Profile::getWorkoutLog() { return workoutLog; }
 MealLog& Profile::getMealLog() { return mealLog; }
 
+// dont have to check validity of date because you cant create an invalid date to begin with
 void Profile::updateDateOfBirth(const Date& dateOfBirth) { this->dateOfBirth = dateOfBirth; }
-void Profile::updateHeight(const double height) { if(height > 0.0) this->height = height; }
-void Profile::updateWeight(const double weight) { if(weight > 0.0) this->weight = weight; }
-void Profile::updateFirstName(const std::string& firstName) { if(firstName != "") this->firstName = firstName; }
-void Profile::updateLastName(const std::string& lastName) { if(lastName != "") this->lastName = lastName; }
-void Profile::updateUsername(const std::string& username) { if(username != "") this->username = username; }
-void Profile::updatePassword(const std::string& password) { if(password != "") this->password = password; }
+
+
+void Profile::updateHeight(const double height) 
+{ 
+    if(height <= 0.0)
+        throw std::invalid_argument("Height must be positive and non zero");
+    
+    this->height = height; 
+}
+
+void Profile::updateWeight(const double weight) 
+{ 
+    if(weight <= 0.0)
+        throw std::invalid_argument("Weight must be positive and non zero");
+    
+    this->weight = weight; 
+}
+
+void Profile::updateFirstName(const std::string& firstName) 
+{ 
+    if(firstName.empty()) 
+        throw std::invalid_argument("First name cannot be empty");
+    
+    this->firstName = firstName; 
+}
+
+void Profile::updateLastName(const std::string& lastName) 
+{ 
+    if (lastName.empty())
+        throw std::invalid_argument("Last name cannot be empty");
+    
+    this->lastName = lastName; 
+}
+
+void Profile::updateUsername(const std::string& username) 
+{ 
+    if (username.empty())
+        throw std::invalid_argument("Username cannot be empty");
+    
+    this->username = username; 
+}
+
+
+void Profile::updatePassword(const std::string& password) 
+{ 
+    if (password.empty())
+        throw std::invalid_argument("Password cannot be empty"); 
+    
+    this->password = password; 
+}
 
 void Profile::validateProfileData() 
 {
     if (getAge() <= 0)
-        throw std::invalid_argument("Age must be positive");
+        throw std::invalid_argument("Age must be positive and non zero");
     if (height <= 0)
-        throw std::invalid_argument("Height must be positive");
+        throw std::invalid_argument("Height must be positive and non zero");
     if (weight <= 0)
-        throw std::invalid_argument("Weight must be positive");
+        throw std::invalid_argument("Weight must be positive and non zero");
     if (firstName.empty())
         throw std::invalid_argument("First name cannot be empty");
     if (lastName.empty())

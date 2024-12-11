@@ -85,6 +85,11 @@ public:
     
 private:
     /**
+     * @brief Verifies that all data is valid.
+     */
+    void verifyValidData() const;
+
+    /**
      * @brief The name of the meal
      */
     std::string mealName;
