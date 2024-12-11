@@ -30,7 +30,7 @@ public:
      * @param username A constant reference to a string of the user's username.
      * @param password A constant reference to a string of the user's password.
      */
-    Profile(const int age, const double height, const double weight, 
+    Profile(const Date& dateOfBirth, const double height, const double weight, 
             const std::string& firstName, const std::string& lastName, 
             const std::string& username, const std::string& password);
 
@@ -49,7 +49,7 @@ public:
      * @param workoutLog A constant reference to a `WorkoutLog` object of the user's workout log.
      * @param mealLog A constant reference to a `MealLog` object of the user's meal log.
      */
-    Profile(const int age, const double height, const double weight,
+    Profile(const Date& dateOfBirth, const double height, const double weight,
             const std::string& firstName, const std::string& lastName,
             const Date& dateAccountCreated, const std::string& username,
             const std::string& password, const WorkoutLog& workoutLog,
@@ -61,11 +61,25 @@ public:
     ~Profile() = default;
     
     /**
-     * @breif A getter for the user's age.
+     * @breif Gets the user's age based on todays date and their date of birth.
      * 
      * @return An integer of the user's age.
      */
     int getAge() const;
+
+    /**
+     * @breif Gets the user's age based on todays date and their date of birth.
+     * 
+     * @return An integer of the user's age.
+     */
+    static int getAge(const Date& dateOfBirth);
+
+    /**
+     * @brief A getter for the user's date of birth
+     * 
+     * @return A `Date` object for the user's date of birth.
+     */
+    const Date& getDateOfBirth() const;
 
     /**
      * @breif A getter for the user's height.

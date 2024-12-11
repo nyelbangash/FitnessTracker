@@ -1,7 +1,7 @@
 #include "Profile.h"
 
-Profile::Profile(const int age, const double height, const double weight, const std::string& firstName, const std::string& lastName, const std::string& username, const std::string& password)
-        : age(age), 
+Profile::Profile(const Date& dateOfBirth, const double height, const double weight, const std::string& firstName, const std::string& lastName, const std::string& username, const std::string& password)
+        : dateOfBirth(dateOfBirth), 
           height(height), 
           weight(weight), 
           firstName(firstName), 
@@ -13,8 +13,8 @@ Profile::Profile(const int age, const double height, const double weight, const 
     validateProfileData();
 }
 
-Profile::Profile(const int age, const double height, const double weight, const std::string& firstName, const std::string& lastName, const Date& dateAccountCreated, const std::string& username, const std::string& password, const WorkoutLog& workoutLog, const MealLog& mealLog)
-        : age(age), 
+Profile::Profile(const Date& dateOfBirth, const double height, const double weight, const std::string& firstName, const std::string& lastName, const Date& dateAccountCreated, const std::string& username, const std::string& password, const WorkoutLog& workoutLog, const MealLog& mealLog)
+        : dateOfBirth(dateOfBirth), 
           height(height), 
           weight(weight),
           firstName(firstName), 
@@ -28,7 +28,41 @@ Profile::Profile(const int age, const double height, const double weight, const 
     validateProfileData();
 }
 
-int Profile::getAge() const { return age; }
+int Profile::getAge() const 
+{
+    // Get today's date
+    Date today = Date();
+
+
+    int age = today.getYear() - dateOfBirth.getYear();
+
+    // Check if the birthday hasn't occurred yet this year
+    if ((today.getMonth() < dateOfBirth.getMonth()) || (today.getMonth() == dateOfBirth.getMonth()) && today.getDay() < dateOfBirth.getDay()) 
+    {
+        age--; // Subtract one year
+    }
+
+    return age;
+}
+
+int Profile::getAge(const Date& dateOfBirth)
+{
+    // Get today's date
+    Date today = Date();
+
+
+    int age = today.getYear() - dateOfBirth.getYear();
+
+    // Check if the birthday hasn't occurred yet this year
+    if ((today.getMonth() < dateOfBirth.getMonth()) || (today.getMonth() == dateOfBirth.getMonth()) && today.getDay() < dateOfBirth.getDay()) 
+    {
+        age--; // Subtract one year
+    }
+
+    return age;
+}
+
+const Date& Profile::getDateOfBirth() const { return dateOfBirth; }
 double Profile::getHeight() const { return height; }
 double Profile::getWeight() const { return weight; }
 const std::string& Profile::getFirstName() const { return firstName; }
@@ -49,7 +83,7 @@ void Profile::updatePassword(const std::string& password) { if(password != "") t
 
 void Profile::validateProfileData() 
 {
-    if (age <= 0)
+    if (getAge() <= 0)
         throw std::invalid_argument("Age must be positive");
     if (height <= 0)
         throw std::invalid_argument("Height must be positive");

@@ -15,7 +15,7 @@ vector<Profile*> allProfiles = {};
 int main() 
 {
     // load in every user's profile
-    ifstream inFile("allProfiles.json");
+    ifstream inFile("JsonTestFiles/allProfilesArchive.json");
     string jsonString((istreambuf_iterator<char>(inFile)), istreambuf_iterator<char>());
     auto rootJson = json::load(jsonString);
     for (auto profileJson : rootJson["profiles"]) {

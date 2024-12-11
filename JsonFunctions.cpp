@@ -64,14 +64,14 @@ json::wvalue convertWorkoutLogToJson(const WorkoutLog& workoutLog)
     json::wvalue workoutLogJson;
 
     vector<json::wvalue> workoutsJson;
-    for (const Workout& workout : workoutLog.getLog()) 
+    for (const Workout& workout : workoutLog.getEntries()) 
     {
         workoutsJson.push_back(convertWorkoutToJson(workout));
     }
     
     workoutLogJson["workouts"] = move(workoutsJson);
     workoutLogJson["totalWorkoutTime"] = workoutLog.getTotalWorkoutTime();
-    workoutLogJson["workoutCount"] = workoutLog.getWorkoutCount();
+    workoutLogJson["workoutCount"] = workoutLog.getEntryCount();
     return workoutLogJson;
 }
 
@@ -81,10 +81,10 @@ json::wvalue convertMealLogToJson(const MealLog& mealLog) {
     mealLogJson["totalProtein"] = mealLog.getTotalProtein();
     mealLogJson["totalCarbs"] = mealLog.getTotalCarbs();
     mealLogJson["totalFat"] = mealLog.getTotalFat();
-    mealLogJson["mealCount"] = mealLog.getMealCount();
+    mealLogJson["mealCount"] = mealLog.getEntryCount();
 
     vector<json::wvalue> mealsJson;
-    for (const Meal& meal : mealLog.getLog()) 
+    for (const Meal& meal : mealLog.getEntries()) 
     {
         mealsJson.push_back(convertMealToJson(meal));
     }
@@ -97,7 +97,7 @@ json::wvalue convertProfileToJsonLimited(Profile& profile) {
     json::wvalue profileJson;
     profileJson["firstName"] = profile.getFirstName();
     profileJson["lastName"] = profile.getLastName();
-    profileJson["age"] = profile.getAge();
+    profileJson["dateOfBirth"] = convertDateToJson(profile.getDateOfBirth());
     profileJson["height"] = profile.getHeight();
     profileJson["weight"] = profile.getWeight();
     profileJson["dateAccountCreated"] = convertDateToJson(profile.getDateAccountCreated());
@@ -110,7 +110,7 @@ json::wvalue convertProfileToJsonFull(Profile& profile)
     json::wvalue profileJson;
     profileJson["firstName"] = profile.getFirstName();
     profileJson["lastName"] = profile.getLastName();
-    profileJson["age"] = profile.getAge();
+    profileJson["dateOfBirth"] = convertDateToJson(profile.getDateOfBirth());
     profileJson["height"] = profile.getHeight();
     profileJson["weight"] = profile.getWeight();
     profileJson["dateAccountCreated"] = convertDateToJson(profile.getDateAccountCreated());
@@ -230,17 +230,11 @@ Workout convertJsonToWorkout(const json::rvalue& workoutJson) {
 }
 
 WorkoutLog convertJsonToWorkoutLog(const json::rvalue& workoutLogJson) {
-    if (!workoutLogJson.has("workoutCount") || !workoutLogJson.has("totalWorkoutTime") || 
-        !workoutLogJson.has("workouts")) {
+    if (!workoutLogJson.has("totalWorkoutTime") || !workoutLogJson.has("workouts")) {
         throw invalid_argument("Invalid workout log JSON format");
     }
     
     try {
-        int workoutCount = workoutLogJson["workoutCount"].i();
-        if (workoutCount < 0) {
-            throw invalid_argument("Workout count cannot be negative");
-        }
-
         double totalWorkoutTime = workoutLogJson["totalWorkoutTime"].d();
         if (totalWorkoutTime < 0) {
             throw invalid_argument("Total workout time cannot be negative");
@@ -251,11 +245,7 @@ WorkoutLog convertJsonToWorkoutLog(const json::rvalue& workoutLogJson) {
             workouts.push_back(convertJsonToWorkout(workoutJson));
         }
 
-        if (workouts.size() != workoutCount) {
-            throw invalid_argument("Workout count does not match number of workouts");
-        }
-
-        return WorkoutLog(workouts, workoutCount, totalWorkoutTime);
+        return WorkoutLog(workouts, totalWorkoutTime);
     } catch (const invalid_argument& e) {
         throw;
     } catch (const exception& e) {
@@ -312,7 +302,7 @@ Meal convertJsonToMeal(const json::rvalue& mealJson) {
 MealLog convertJsonToMealLog(const json::rvalue& mealLogJson) {
     if (!mealLogJson.has("totalCalories") || !mealLogJson.has("totalProtein") || 
         !mealLogJson.has("totalCarbs") || !mealLogJson.has("totalFat") || 
-        !mealLogJson.has("mealCount") || !mealLogJson.has("meals")) {
+        !mealLogJson.has("meals")) {
         throw invalid_argument("Invalid meal log JSON format");
     }
     
@@ -321,10 +311,9 @@ MealLog convertJsonToMealLog(const json::rvalue& mealLogJson) {
         double totalProtein = mealLogJson["totalProtein"].d();
         double totalCarbs = mealLogJson["totalCarbs"].d();
         double totalFat = mealLogJson["totalFat"].d();
-        int mealCount = mealLogJson["mealCount"].i();
 
         if (totalCalories < 0 || totalProtein < 0 || totalCarbs < 0 || 
-            totalFat < 0 || mealCount < 0) {
+            totalFat < 0) {
             throw invalid_argument("Log totals cannot be negative");
         }
 
@@ -333,11 +322,7 @@ MealLog convertJsonToMealLog(const json::rvalue& mealLogJson) {
             meals.push_back(convertJsonToMeal(mealJson));
         }
 
-        if (meals.size() != mealCount) {
-            throw invalid_argument("Meal count does not match number of meals");
-        }
-
-        return MealLog(meals, totalCalories, totalProtein, totalCarbs, totalFat, mealCount);
+        return MealLog(meals, totalCalories, totalProtein, totalCarbs, totalFat);
     } catch (const invalid_argument& e) {
         throw;
     } catch (const exception& e) {
@@ -347,7 +332,7 @@ MealLog convertJsonToMealLog(const json::rvalue& mealLogJson) {
 
 Profile* convertJsonToProfile(const json::rvalue& profileJson) {
     if (!profileJson.has("firstName") || !profileJson.has("lastName") || 
-        !profileJson.has("age") || !profileJson.has("height") || 
+        !profileJson.has("dateOfBirth") || !profileJson.has("height") || 
         !profileJson.has("weight") || !profileJson.has("dateAccountCreated") || 
         !profileJson.has("username") || !profileJson.has("password") || 
         !profileJson.has("workoutLog") || !profileJson.has("mealLog")) {
@@ -364,11 +349,11 @@ Profile* convertJsonToProfile(const json::rvalue& profileJson) {
             throw invalid_argument("Profile strings cannot be empty");
         }
 
-        int age = profileJson["age"].i();
+        Date dateOfBirth = convertJsonToDate(profileJson["dateOfBirth"]);
         double height = profileJson["height"].d();
         double weight = profileJson["weight"].d();
 
-        if (age <= 0 || height <= 0 || weight <= 0) {
+        if (Profile::getAge(dateOfBirth) <= 0 || height <= 0 || weight <= 0) {
             throw invalid_argument("Profile measurements must be positive");
         }
 
@@ -376,7 +361,7 @@ Profile* convertJsonToProfile(const json::rvalue& profileJson) {
         WorkoutLog workoutLog = convertJsonToWorkoutLog(profileJson["workoutLog"]);
         MealLog mealLog = convertJsonToMealLog(profileJson["mealLog"]);
 
-        return new Profile(age, height, weight, firstName, lastName, 
+        return new Profile(dateOfBirth, height, weight, firstName, lastName, 
                          dateAccountCreated, username, password, workoutLog, mealLog);
     } catch (const invalid_argument& e) {
         throw;

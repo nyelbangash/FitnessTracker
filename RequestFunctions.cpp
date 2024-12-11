@@ -98,7 +98,7 @@ response createProfile(const request& req) {
 
         try {
             Profile* newProfile = new Profile(
-                static_cast<int>(readValueJson["age"].i()),
+                convertJsonToDate(readValueJson["dateOfBirth"]),
                 readValueJson["height"].d(),
                 readValueJson["weight"].d(),
                 readValueJson["firstName"].s(),
@@ -227,7 +227,7 @@ response addToMealLog(const request& req) {
         }
 
         Meal newMeal = convertJsonToMeal(readValueJson);
-        usersProfile->getMealLog().addMeal(newMeal);
+        usersProfile->getMealLog().addEntry(newMeal);
 
         return response(200, convertMealLogToJson(usersProfile->getMealLog()).dump() + "\n");
     } catch (const invalid_argument& e) {
@@ -247,7 +247,7 @@ response addToWorkoutLog(const request& req) {
         }
 
         Workout newWorkout = convertJsonToWorkout(readValueJson);
-        usersProfile->getWorkoutLog().addWorkout(newWorkout);
+        usersProfile->getWorkoutLog().addEntry(newWorkout);
 
         return response(200, convertWorkoutLogToJson(usersProfile->getWorkoutLog()).dump() + "\n");
     } catch (const invalid_argument& e) {
@@ -271,7 +271,7 @@ response updateProfile(const request& req)
         usersProfile->updatePassword(readValueJson["password"].s());
         usersProfile->updateWeight(readValueJson["weight"].d());
         usersProfile->updateHeight(readValueJson["height"].d());
-        usersProfile->updateAge(readValueJson["age"].i());
+        usersProfile->updateDateOfBirth(convertJsonToDate(readValueJson["age"]));
         usersProfile->updateLastName(readValueJson["lastName"].s());
         usersProfile->updateFirstName(readValueJson["firstName"].s());
 

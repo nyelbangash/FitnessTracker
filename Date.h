@@ -54,16 +54,17 @@ public:
      */
     const bool operator==(const Date& other) const;
 
-private:
     /**
      * @brief Gets the current year.
      * 
      * Used in constructor for year validity verification.
+     * Can be used without creating an instance.
      * 
      * @return A constant integer of the current year.
      */
-    const int getCurrentYear();
+    static const int getCurrentYear();
 
+private:
     /**
      * @breif The day.
      */

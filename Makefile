@@ -23,6 +23,9 @@ MealLog.o: MealLog.cpp MealLog.h Meal.h Date.h Log.h
 Log.o: Log.cpp Log.h
 	g++ -c Log.cpp
 
+Date.o: Date.cpp Date.h
+	g++ -c Date.cpp
+
 Profile.o: Profile.cpp Profile.h Date.h MealLog.h Meal.h Log.h WorkoutLog.h Workout.h Exercise.h Set.h
 	g++ -c Profile.cpp
 
@@ -35,8 +38,8 @@ RequestFunctions.o: RequestFunctions.cpp RequestFunctions.h JsonFunctions.h Prof
 app.o: app.cpp Profile.h Date.h MealLog.h Meal.h Log.h WorkoutLog.h Workout.h Exercise.h Set.h JsonFunctions.h RequestFunctions.h
 	g++ -c app.cpp
 
-app: app.o Profile.o Log.o MealLog.o Meal.o WorkoutLog.o Workout.o Exercise.o Set.o JsonFunctions.o RequestFunctions.o
-	g++ Profile.o Log.o MealLog.o Meal.o WorkoutLog.o Workout.o Exercise.o Set.o JsonFunctions.o RequestFunctions.o -o app
+app: app.o Profile.o Log.o MealLog.o Meal.o WorkoutLog.o Workout.o Exercise.o Set.o JsonFunctions.o RequestFunctions.o Date.o
+	g++ app.o Profile.o Log.o MealLog.o Meal.o WorkoutLog.o Workout.o Exercise.o Set.o JsonFunctions.o RequestFunctions.o Date.o -o app
 
 # tests.o: tests.cpp Date.h Set.h Exercise.h Workout.h WorkoutLog.h Meal.h MealLog.h FitnessLog.h
 # 	g++ -c tests.cpp
