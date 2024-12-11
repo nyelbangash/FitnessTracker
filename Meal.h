@@ -3,72 +3,126 @@
 
 #include <string>
 #include <vector>
-#include <stdexcept>
 #include "Date.h"
 
 class Meal {
 public:
-    Meal(const std::string& mealName, double calories, double protein, double carbs, 
-         double fat, const std::vector<std::string>& ingredients)
-        : mealName(mealName),
-          calories(calories),
-          protein(protein),
-          carbs(carbs),
-          fat(fat),
-          ingredients(ingredients),
-          date(Date()) {  // Initialize with current date
-        validateMealData();
-    }
+    /**
+     * @brief Constructs a Meal object with an initial meal name, amount of calories, protein, carbs, fat, and a set of ingredients.
+     * 
+     * dateMealEaten will be automatically initialized durring construction.
+     * 
+     * @param mealName A constant reference to a string of the name of the meal.
+     * @param calories A double of the number of calories in the meal.
+     * @param protein A double of the number of grams of protein in the meal.
+     * @param carbs A double of the number of grams of carbs in the meal.
+     * @param fat A double of the number of grams of fat in the meal.
+     * @param ingredients A constant reference to a vector of strings of the ingredients that comprise the meal.
+     */
+    Meal(const std::string& mealName, double calories, double protein, double carbs, double fat, const std::vector<std::string>& ingredients);
     
-    Meal(const std::string& mealName, double calories, double protein, double carbs,
-         double fat, const std::vector<std::string>& ingredients, const Date& date)
-        : mealName(mealName),
-          calories(calories),
-          protein(protein),
-          carbs(carbs),
-          fat(fat),
-          ingredients(ingredients),
-          date(date) {
-        validateMealData();
-    }
+    /**
+     * @brief Constructs a Meal object with an initial meal name, amount of calories, protein, carbs, fat, and a set of ingredients.
+     * 
+     * @param mealName A constant reference to a string of the name of the meal.
+     * @param calories A double of the number of calories in the meal.
+     * @param protein A double of the number of grams of protein in the meal.
+     * @param carbs A double of the number of grams of carbs in the meal.
+     * @param fat A double of the number of grams of fat in the meal.
+     * @param ingredients A constant reference to a vector of strings of the ingredients that comprise the meal.
+     * @param date A constant reference to a `Date` object of the date the meal was eaten.
+     */
+    Meal(const std::string& mealName, double calories, double protein, double carbs, double fat, const std::vector<std::string>& ingredients, const Date& date);
 
-    const std::string& getMealName() const { return mealName; }
-    double getCalories() const { return calories; }
-    double getProtein() const { return protein; }
-    double getCarbs() const { return carbs; }
-    double getFat() const { return fat; }
-    const std::vector<std::string>& getIngredients() const { return ingredients; }
-    const Date& getDate() const { return date; }
+    /**
+     * @brief A getter for the name of the meal.
+     * 
+     * @return A constant reference to a string of the name of the meal.
+     */
+    const std::string& getMealName() const;
+
+    /**
+     * @brief A getter for the number of calories in the meal.
+     * 
+     * @return A double of the number of calories in the meal.
+     */
+    double getCalories() const;
+
+    /**
+     * @breif A getter for the number of grams of protein in the meal.
+     * 
+     * @return A double of the number of grams of protein in the meal.
+     */
+    double getProtein() const;
+
+    /**
+     * @breif A getter for the number of grams of carbs in the meal.
+     * 
+     * @return A double of the number of grams of carbs in the meal.
+     */
+    double getCarbs() const;
+
+    /**
+     * @breif A getter for the number of grams of fat in the meal.
+     * 
+     * @return A double of the number of grams of fat in the meal.
+     */
+    double getFat() const;
+
+    /**
+     * @brief A getter for the ingredients that comprise the meal.
+     * 
+     * @return A constant reference to a vector of strings of the ingredients that comprise the meal.
+     */
+    const std::vector<std::string>& getIngredients() const;
+
+    /**
+     * @brief A getter for the date the meal was eaten.
+     * 
+     * @return A constant reference to a `Date` object of the date the meal was eaten.
+     */
+    const Date& getDate() const;
     
 private:
-    void validateMealData() {
-        if (mealName.empty()) {
-            throw std::invalid_argument("Meal name cannot be empty");
-        }
-        if (calories < 0) {
-            throw std::invalid_argument("Calories cannot be negative");
-        }
-        if (protein < 0) {
-            throw std::invalid_argument("Protein cannot be negative");
-        }
-        if (carbs < 0) {
-            throw std::invalid_argument("Carbs cannot be negative");
-        }
-        if (fat < 0) {
-            throw std::invalid_argument("Fat cannot be negative");
-        }
-        if (ingredients.empty()) {
-            throw std::invalid_argument("Ingredients list cannot be empty");
-        }
-    }
+    /**
+     * @brief Verifies that all data is valid.
+     */
+    void verifyValidData() const;
 
+    /**
+     * @brief The name of the meal
+     */
     std::string mealName;
+
+    /**
+     * @brief The amount of calories in the meal
+     */
     double calories = 0.0;
+
+    /**
+     * @brief The amount of grams of protein in the meal.
+     */
     double protein = 0.0;
+
+    /**
+     * @brief The amount of grams of carbs in the meal.
+     */
     double carbs = 0.0;
+
+    /**
+     * @brief The amount of grams of fat in the meal.
+     */
     double fat = 0.0;
+
+    /**
+     * @brief The ingredients that comprise the meal.
+     */
     std::vector<std::string> ingredients;
-    Date date;
+
+    /**
+     * The date the meal was eaten.
+     */
+    Date dateMealEaten;
 };
 
 #endif

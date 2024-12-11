@@ -8,7 +8,7 @@
                     {
                         "lengthOfWorkout": 134.55,
                         "dateCreated": {
-                            "day": 7,
+                            "day": 11,
                             "month": 12,
                             "year": 2024
                         },
@@ -99,18 +99,13 @@
                         "dateCreated": {
                             "year": 2024,
                             "month": 12,
-                            "day": 6
+                            "day": 11
                         },
                         "lengthOfWorkout": 156.45
                     }
                 ]
             },
             "mealLog": {
-                "mealCount": 2,
-                "totalFat": 64.0,
-                "totalCarbs": 164.0,
-                "totalProtein": 116.0,
-                "totalCalories": 1697.6,
                 "meals": [
                     {
                         "mealName": "Breakfast",
@@ -125,7 +120,7 @@
                             "coffee"
                         ],
                         "date": {
-                            "day": 7,
+                            "day": 11,
                             "month": 12,
                             "year": 2024
                         }
@@ -134,7 +129,7 @@
                         "date": {
                             "year": 2024,
                             "month": 12,
-                            "day": 7
+                            "day": 11
                         },
                         "ingredients": [
                             "rice",
@@ -147,17 +142,26 @@
                         "carbs": 107.0,
                         "mealName": "Lunch"
                     }
-                ]
+                ],
+                "mealCount": 2,
+                "totalFat": 64.0,
+                "totalCarbs": 164.0,
+                "totalProtein": 116.0,
+                "totalCalories": 1697.6
             },
             "username": "janedoe",
             "weight": 105.6,
             "dateAccountCreated": {
                 "year": 2024,
                 "month": 12,
-                "day": 7
+                "day": 11
             },
             "height": 63.0,
-            "age": 23,
+            "dateOfBirth": {
+                "year": 2000,
+                "month": 7,
+                "day": 30
+            },
             "password": "janedoe1234",
             "lastName": "Doe",
             "firstName": "Jane"
@@ -237,7 +241,7 @@
                         "dateCreated": {
                             "year": 2024,
                             "month": 12,
-                            "day": 7
+                            "day": 11
                         },
                         "lengthOfWorkout": 70.0
                     }
@@ -249,7 +253,7 @@
                         "date": {
                             "year": 2024,
                             "month": 12,
-                            "day": 7
+                            "day": 11
                         },
                         "ingredients": [
                             "eggs",
@@ -275,7 +279,7 @@
                             "squash"
                         ],
                         "date": {
-                            "day": 7,
+                            "day": 11,
                             "month": 12,
                             "year": 2024
                         }
@@ -284,7 +288,7 @@
                         "date": {
                             "year": 2024,
                             "month": 12,
-                            "day": 7
+                            "day": 11
                         },
                         "ingredients": [
                             "yogurt",
@@ -302,7 +306,7 @@
                         "date": {
                             "year": 2024,
                             "month": 12,
-                            "day": 6
+                            "day": 11
                         },
                         "ingredients": [
                             "pasta",
@@ -327,10 +331,14 @@
             "dateAccountCreated": {
                 "year": 2024,
                 "month": 12,
-                "day": 7
+                "day": 11
             },
             "height": 78.0,
-            "age": 34,
+            "dateOfBirth": {
+                "year": 2004,
+                "month": 11,
+                "day": 26
+            },
             "password": "jdoe112",
             "lastName": "Doe",
             "firstName": "John"

@@ -2,49 +2,82 @@
 #define WORKOUT_H
 
 #include <vector>
-#include <stdexcept>
 #include "Exercise.h"
 #include "Date.h"
 
 class Workout {
 public:
-    Workout(const std::vector<Exercise>& exercises, const std::string& workoutName, 
-            double lengthOfWorkout) 
-            : exercises(exercises),
-              workoutName(workoutName),
-              lengthOfWorkout(lengthOfWorkout),
-              dateCreated(Date()) {  // Initialize with current date
-        validateWorkoutData();
-    }
+    /**
+     * @brief Constructs a Workout object with an intital set of exercises, a workout name, and the length of the workout.
+     * 
+     * dateWorkedOut will be automatically initialized durring construction.
+     * 
+     * @param exercises A reference to a vector of type exercises.
+     * @param workoutName A string of the workout name.
+     * @param lengthOfWorkout A double of the length of the workout.
+     */
+    Workout(const std::vector<Exercise>& exercises, const std::string& workoutName, double lengthOfWorkout);
+
+    /**
+     * @brief Constructs a Workout object with an intital set of exercises, a workout name, the length of the workout, and the date worked out.
+     * 
+     * @param exercises A constant reference to a vector of type exercises.
+     * @param workoutName A constant string of the workout name.
+     * @param lengthOfWorkout A double of the length of the workout.
+     * @param dateWorkedOut A constant reference to a Date object of the date worked out.
+     */
+    Workout(const std::vector<Exercise>& exercises, const std::string& workoutName, double lengthOfWorkout, const Date& dateWorkedOut);
     
-    Workout(const std::vector<Exercise>& exercises, const std::string& workoutName, 
-            double lengthOfWorkout, const Date& dateCreated) 
-            : exercises(exercises),
-              workoutName(workoutName),
-              lengthOfWorkout(lengthOfWorkout),
-              dateCreated(dateCreated) {
-        validateWorkoutData();
-    }
+    /**
+     * @brief A getter for the exercises that comprise the workout.
+     * 
+     * @return A vector of type Exercise for the exercises that comprise the workout.
+     */
+    const std::vector<Exercise>& getExercises() const;
+
+    /**
+     * @brief A getter for the workout name.
+     * 
+     * @return A string of the workout name.
+     */
+    const std::string& getWorkoutName() const;
+
+    /**
+     * @brief A getter for the lenght of the workout.
+     * 
+     * @return A double of the length of the workout.
+     */
+    double getLengthOfWorkout() const;
     
-    const std::vector<Exercise>& getExercises() const { return exercises; }
-    const std::string& getWorkoutName() const { return workoutName; }
-    double getLengthOfWorkout() const { return lengthOfWorkout; }
-    const Date& getDateCreated() const { return dateCreated; }
+
+    /**
+     * @brief A getter for the date workoed out.
+     * 
+     * @return A date object of the date worked out.
+     */
+    const Date& getDateCreated() const;
     
 private:
-    void validateWorkoutData() {
-        if (exercises.empty())
-            throw std::invalid_argument("Exercises vector cannot be empty");
-        if (workoutName.empty())
-            throw std::invalid_argument("Workout name cannot be empty");
-        if (lengthOfWorkout <= 0)
-            throw std::invalid_argument("Workout length must be positive");
-    }
 
+    /**
+     * @brief The exercises that comprise the workout.
+     */
     std::vector<Exercise> exercises;
+
+    /**
+     * @brief The name of the workout.
+     */
     std::string workoutName;
+
+    /**
+     * The lenght of the workout.
+     */
     double lengthOfWorkout;
-    Date dateCreated;
+
+    /**
+     * The date the user worked out.
+     */
+    Date dateWorkedOut;
 };
 
 #endif

@@ -5,38 +5,79 @@
 #include <string>
 #include <stdexcept>
 
+/**
+ * @brief A class to store dates for day, month, and year.
+ */
 class Date {
 public:
-    Date(const int day, const int month, const int year) {
-        if (month < 1 || month > 12)
-            throw std::invalid_argument("Month must be between 1 and 12");
-        if (day < 1 || day > 31)
-            throw std::invalid_argument("Day must be between 1 and 31");
-        if (year < 1900)
-            throw std::invalid_argument("Year must be 1900 or later");
-            
-        this->day = day;
-        this->month = month;
-        this->year = year;
-    }
+    /**
+     * @breif Constructs a `Date` object with an initial day, month, and year.
+     * 
+     * @param day An integer of day.
+     * @param month An integer of the month.
+     * @param An integer of the year.
+     */
+    Date(const int day, const int month, const int year);
     
-    Date() {
-        std::time_t now = std::time(nullptr);  
-        std::tm* localTime = std::localtime(&now);
-        
-        day = localTime->tm_mday;
-        month = localTime->tm_mon + 1;
-        year = localTime->tm_year + 1900;
-    }
+    /**
+     * @brief Constructs a `Date` object for the current day.
+     */
+    Date();
 
-    int getDay() const { return day; }
-    int getMonth() const { return month; }
-    int getYear() const { return year; }
+    /**
+     * @brief A getter for the day.
+     * 
+     * @return An integer of the day.
+     */
+    const int getDay() const;
 
-    bool operator==(const Date& other) const { return day == other.day && month == other.month && year == other.year; }
+    /**
+     * @brief A getter for the month.
+     * 
+     * @return An integer of the month.
+     */
+    const int getMonth() const;
+
+    /**
+     * @brief A getter for the year.
+     * 
+     * @return An integer of the year.
+     */
+    const int getYear() const;
+
+    /**
+     * @brief A double equals comparison operator.
+     * 
+     * If both `Date` objects have the same day, mont, and year, they are deemed equal.
+     * 
+     * @return A boolean value of true or false if they are equal or not, respectively.
+     */
+    const bool operator==(const Date& other) const;
+
+    /**
+     * @brief Gets the current year.
+     * 
+     * Used in constructor for year validity verification.
+     * Can be used without creating an instance.
+     * 
+     * @return A constant integer of the current year.
+     */
+    static const int getCurrentYear();
+
 private:
+    /**
+     * @breif The day.
+     */
     int day;
+
+    /**
+     * @breif The month.
+     */
     int month;
+
+    /**
+     * @breif The year.
+     */
     int year;
 };
 

@@ -73,7 +73,7 @@
                 "dateCreated": {
                     "year": 2024,
                     "month": 12,
-                    "day": 7
+                    "day": 11
                 },
                 "lengthOfWorkout": 70.0
             }
@@ -85,7 +85,7 @@
                 "date": {
                     "year": 2024,
                     "month": 12,
-                    "day": 7
+                    "day": 11
                 },
                 "ingredients": [
                     "eggs",
@@ -111,7 +111,7 @@
                     "squash"
                 ],
                 "date": {
-                    "day": 7,
+                    "day": 11,
                     "month": 12,
                     "year": 2024
                 }
@@ -120,7 +120,7 @@
                 "date": {
                     "year": 2024,
                     "month": 12,
-                    "day": 7
+                    "day": 11
                 },
                 "ingredients": [
                     "yogurt",
@@ -138,7 +138,7 @@
                 "date": {
                     "year": 2024,
                     "month": 12,
-                    "day": 7
+                    "day": 11
                 },
                 "ingredients": [
                     "pasta",
@@ -163,10 +163,14 @@
     "dateAccountCreated": {
         "year": 2024,
         "month": 12,
-        "day": 7
+        "day": 11
     },
     "height": 78.0,
-    "age": 34,
+    "dateOfBirth": {
+        "year": 2004,
+        "month": 11,
+        "day": 26
+    },
     "password": "jdoe112",
     "lastName": "Doe",
     "firstName": "John"
