@@ -1,67 +1,92 @@
 #ifndef MEAL_LOG_H
 #define MEAL_LOG_H
 
-#include <stdexcept>
 #include "Meal.h"
 #include "FitnessLog.h"
 
+/**
+ * @brief A log for tracking meals.
+ *
+ * This class extends the generic `Log` class to manage entries of type `Meal`.
+ * It includes functionality to track total calories, protein, carbs, fat across all logged entries along with the meals themselves.
+ */
 class MealLog : public FitnessLog<Meal> {
 public:
+    /**
+     * @brief Default constructor.
+     *
+     * Initializes an empty MealLog.
+     */
     MealLog() = default;
     
-    MealLog(std::vector<Meal> meals, double totalCalories, double totalProtein, 
-            double totalCarbs, double totalFat, int mealCount) 
-            : FitnessLog<Meal>(meals, mealCount),
-              totalCalories(totalCalories),
-              totalProtein(totalProtein),
-              totalCarbs(totalCarbs),
-              totalFat(totalFat) {
-        validateNutritionalValues();
-        if (meals.size() != mealCount) {
-            throw std::invalid_argument("Meal count does not match size of meals vector");
-        }
-    }
+    /**
+     * @brief Constructs a MealLog with initial set of meals and total calories, protein, carbs, fat
+     * 
+     * @param meals A vector of type Meal containing meal entries.
+     * @param totalCalories A double of the total calories accross all meals.
+     * @param totalProtein A double of the total protein accross all meals.
+     * @param totalCarbs A double of the total carbs accross all meals.
+     * @param totalFat A double of the total calories accross all meals.
+     */
+    MealLog(std::vector<Meal> meals, double totalCalories, double totalProtein, double totalCarbs, double totalFat);
 
-    //Getters
-    double getTotalCalories() const { return totalCalories; }
-    double getTotalProtein() const { return totalProtein; }
-    double getTotalCarbs() const { return totalCarbs; }
-    double getTotalFat() const { return totalFat; }
-    int getMealCount() const { return entryCount; }
+    /**
+     * @brief Getter for the total calories across all meals.
+     * 
+     * @return A double of the total calories across all meals.
+     */
+    double getTotalCalories() const;
 
-    //Add Meal
-    void addMeal(const Meal& meal) {
-        if (meal.getCalories() < 0 || meal.getProtein() < 0 || 
-            meal.getCarbs() < 0 || meal.getFat() < 0) {
-            throw std::invalid_argument("Meal nutritional values cannot be negative");
-        }
+    /**
+     * @brief Getter for the total protein across all meals.
+     * 
+     * @return A double of the total protein across all meals.
+     */
+    double getTotalProtein() const;
 
-        entries.push_back(meal);
-        totalCalories += meal.getCalories();
-        totalProtein += meal.getProtein();
-        totalCarbs += meal.getCarbs();
-        totalFat += meal.getFat();
-        entryCount += 1;
-    }
+    /**
+     * @brief Getter for the total carbs across all meals.
+     * 
+     * @return A double of the total carbs across all meals.
+     */
+    double getTotalCarbs() const;
+
+    /**
+     * @brief Getter for the total fat across all meals.
+     * 
+     * @return A double of the total fat across all meals.
+     */
+    double getTotalFat() const;
+
+    /**
+     * @brief Adds a new meal entry to the log.
+     *
+     * Updates the total calories, protein, carbs, fat acoordingly.
+     *
+     * @param meal The meal entry to add to the log.
+     */
+    void addEntry(const Meal& meal);
 
 private:
-    //Validate constructor
-    void validateNutritionalValues() {
-        if (totalCalories < 0)
-            throw std::invalid_argument("Total calories cannot be negative");
-        if (totalProtein < 0)
-            throw std::invalid_argument("Total protein cannot be negative");
-        if (totalCarbs < 0)
-            throw std::invalid_argument("Total carbs cannot be negative");
-        if (totalFat < 0)
-            throw std::invalid_argument("Total fat cannot be negative");
-    }
-
+    /**
+     * @brief The total calories accumulated across all meals
+     */
     double totalCalories = 0;
+
+    /**
+     * @brief The total protein accumulated across all meals
+     */
     double totalProtein = 0;
+
+    /**
+     * @brief The total carbs accumulated across all meals
+     */
     double totalCarbs = 0;
+
+    /**
+     * @brief The total fat accumulated across all meals
+     */
     double totalFat = 0;
-    // std::vector<Meal> meals;
 };
 
 #endif
