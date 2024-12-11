@@ -1,7 +1,7 @@
 #include "MealLog.h"
 
 MealLog::MealLog(std::vector<Meal> meals, double totalCalories, double totalProtein, double totalCarbs, double totalFat) 
-    :   FitnessLog<Meal>(meals, mealCount),
+    :   Log<Meal>(meals),
         totalCalories(totalCalories),
         totalProtein(totalProtein),
         totalCarbs(totalCarbs),
@@ -11,7 +11,6 @@ double MealLog::getTotalCalories() const { return totalCalories; }
 double MealLog::getTotalProtein() const { return totalProtein; }
 double MealLog::getTotalCarbs() const { return totalCarbs; }
 double MealLog::getTotalFat() const { return totalFat; }
-int MealLog::getMealCount() const { return entryCount; }
 
 void MealLog::addEntry(const Meal& meal) 
 {

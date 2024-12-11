@@ -2,7 +2,7 @@
 #define MEAL_LOG_H
 
 #include "Meal.h"
-#include "FitnessLog.h"
+#include "Log.h"
 
 /**
  * @brief A log for tracking meals.
@@ -10,7 +10,7 @@
  * This class extends the generic `Log` class to manage entries of type `Meal`.
  * It includes functionality to track total calories, protein, carbs, fat across all logged entries along with the meals themselves.
  */
-class MealLog : public FitnessLog<Meal> {
+class MealLog : public Log<Meal> {
 public:
     /**
      * @brief Default constructor.
