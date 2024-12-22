@@ -40,7 +40,8 @@ int main()
     CROW_ROUTE(app, "/workout-api/meallog").methods(HTTPMethod::PUT)(addToMealLog);
 
 
-    // Run the web service app. 
+    // Run the web service app.
+    // Enable CORS
     app.port(15963).run();
 
     // save the profiles to json file
