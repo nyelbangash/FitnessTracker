@@ -1,10 +1,22 @@
 defmodule FitnessTracker.Schemas.Set do
   defstruct [:reps, :weight]
 
-  def new(reps, weight)
-      when is_integer(reps) and reps > 0 and is_number(weight) and weight >= 0 do
-    {:ok, %__MODULE__{reps: reps, weight: weight}}
+  def new(attrs) do
+    attrs = Enum.map(attrs, fn {key, value} -> {String.to_atom(key), value} end)
+    struct(__MODULE__, attrs)
   end
 
-  def new(_, _), do: {:error, "Invalid set parameters"}
+  def to_json(%__MODULE__{} = set) do
+    %{
+      reps: set.reps,
+      weight: set.weight
+    }
+  end
+
+  def from_json(json) when is_map(json) do
+    %__MODULE__{
+      reps: json["reps"],
+      weight: json["weight"]
+    }
+  end
 end

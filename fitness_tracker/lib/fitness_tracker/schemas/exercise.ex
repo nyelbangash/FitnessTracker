@@ -1,10 +1,14 @@
 defmodule FitnessTracker.Schemas.Exercise do
   defstruct [:sets, :exercise_name]
 
-  def new(sets, exercise_name)
-      when is_list(sets) and is_binary(exercise_name) and exercise_name != "" do
-    {:ok, %__MODULE__{sets: sets, exercise_name: exercise_name}}
+  def new(attrs) do
+    {:ok, struct(__MODULE__, attrs)}
   end
 
-  def new(_, _), do: {:error, "Invalid exercise parameters"}
+  def to_json(%__MODULE__{} = exercise) do
+    %{
+      sets: Enum.map(exercise.sets, &FitnessTracker.Schemas.Set.to_json/1),
+      exercise_name: exercise.exercise_name
+    }
+  end
 end

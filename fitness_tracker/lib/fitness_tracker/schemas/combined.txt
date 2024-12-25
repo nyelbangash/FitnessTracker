@@ -1,3 +1,75 @@
+defmodule FitnessTracker.Schemas.Date do
+  defstruct [:day, :month, :year]
+
+  def new(day, month, year) do
+    with true <- is_valid_date?(day, month, year) do
+      {:ok, %__MODULE__{day: day, month: month, year: year}}
+    else
+      false -> {:error, "Invalid date"}
+    end
+  end
+
+  defp is_valid_date?(day, month, year) do
+    day in 1..31 and month in 1..12 and year >= 1900 and year <= current_year()
+  end
+
+  defp current_year, do: DateTime.utc_now().year
+end
+defmodule FitnessTracker.Schemas.Exercise do
+  defstruct [:sets, :exercise_name]
+
+  def new(attrs) do
+    {:ok, struct(__MODULE__, attrs)}
+  end
+
+  def to_json(%__MODULE__{} = exercise) do
+    %{
+      sets: Enum.map(exercise.sets, &FitnessTracker.Schemas.Set.to_json/1),
+      exercise_name: exercise.exercise_name
+    }
+  end
+end
+defmodule FitnessTracker.Schemas.Ingredient do
+  defstruct [:name]
+
+  def new(attrs) do
+    attrs = Enum.map(attrs, fn {key, value} -> {String.to_atom(key), value} end)
+    struct(__MODULE__, attrs)
+  end
+
+  def to_json(%__MODULE__{} = ingredient) do
+    %{
+      name: ingredient.name
+    }
+  end
+end
+defmodule FitnessTracker.Schemas.Meal do
+  defstruct [:meal_name, :calories, :protein, :carbs, :fat, :ingredients, :date_eaten]
+
+  def new(attrs) do
+    attrs = Enum.map(attrs, fn
+      {key, value} when is_atom(key) -> {key, value}
+      {key, value} when is_binary(key) -> {String.to_atom(key), value}
+    end)
+    {:ok, struct(__MODULE__, attrs)}
+  end
+
+  def to_json(%__MODULE__{} = meal) do
+    %{
+      meal_name: meal.meal_name,
+      calories: meal.calories,
+      protein: meal.protein,
+      carbs: meal.carbs,
+      fat: meal.fat,
+      ingredients: Enum.map(meal.ingredients, &FitnessTracker.Schemas.Ingredient.to_json/1),
+      date_eaten: meal.date_eaten
+    }
+  end
+
+  def from_json(json) when is_map(json) do
+    struct(__MODULE__, json)
+  end
+end
 # lib/fitness_tracker/schemas/profile.ex
 defmodule FitnessTracker.Schemas.Profile do
   @moduledoc """
@@ -114,6 +186,45 @@ defmodule FitnessTracker.Schemas.Profile do
       height: json["height"],
       weight: json["weight"],
       date_account_created: json["dateAccountCreated"]
+    }
+  end
+end
+defmodule FitnessTracker.Schemas.Set do
+  defstruct [:reps, :weight]
+
+  def new(attrs) do
+    attrs = Enum.map(attrs, fn {key, value} -> {String.to_atom(key), value} end)
+    struct(__MODULE__, attrs)
+  end
+
+  def to_json(%__MODULE__{} = set) do
+    %{
+      reps: set.reps,
+      weight: set.weight
+    }
+  end
+
+  def from_json(json) when is_map(json) do
+    %__MODULE__{
+      reps: json["reps"],
+      sets: json["sets"]
+    }
+  end
+end
+# lib/fitness_tracker/schemas/workout.ex
+defmodule FitnessTracker.Schemas.Workout do
+  defstruct [:exercises, :workout_name, :length_of_workout, :date_worked_out]
+
+  def new(attrs) do
+    {:ok, struct(__MODULE__, attrs)}
+  end
+
+  def to_json(%__MODULE__{} = workout) do
+    %{
+      exercises: Enum.map(workout.exercises, &FitnessTracker.Schemas.Exercise.to_json/1),
+      workout_name: workout.workout_name,
+      length_of_workout: workout.length_of_workout,
+      date_worked_out: workout.date_worked_out
     }
   end
 end
