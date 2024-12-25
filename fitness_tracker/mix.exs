@@ -13,14 +13,16 @@ defmodule FitnessTracker.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :mongodb_driver],  # This is correct
+      # This is correct
+      extra_applications: [:logger, :mongodb_driver],
       mod: {FitnessTracker.Application, []}
     ]
   end
 
   defp deps do
     [
-      {:mongodb_driver, "~> 1.5.0"},  # Changed this line back to mongodb_driver
+      # Changed this line back to mongodb_driver
+      {:mongodb_driver, "~> 1.5.0"},
       {:poolboy, "~> 1.5"},
       {:plug, "~> 1.14"},
       {:plug_cowboy, "~> 2.6"},

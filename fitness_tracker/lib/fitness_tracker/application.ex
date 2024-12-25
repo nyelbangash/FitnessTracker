@@ -5,17 +5,16 @@ defmodule FitnessTracker.Application do
   def start(_type, _args) do
     children = [
       # Start Mongo first
-      {Mongo, [
-        name: :mongo,
-        database: "fitness_tracker",
-        pool_size: 2
-      ]},
+      {Mongo,
+       [
+         name: :mongo,
+         database: "fitness_tracker",
+         pool_size: 2
+       ]},
       # Then your other services
       {
         Plug.Cowboy,
-        scheme: :http,
-        plug: FitnessTracker.Router,
-        options: [port: 4001]
+        scheme: :http, plug: FitnessTracker.Router, options: [port: 4001]
       }
     ]
 

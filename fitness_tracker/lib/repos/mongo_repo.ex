@@ -8,13 +8,14 @@ defmodule FitnessTracker.Repos.MongoRepo do
   end
 
   def init(:ok) do
-    {:ok, conn} = Mongo.start_link(
-      name: :mongo,
-      hostname: "localhost",
-      database: "fitness_tracker",
-      port: 27017,
-      pool_size: 2
-    )
+    {:ok, conn} =
+      Mongo.start_link(
+        name: :mongo,
+        hostname: "localhost",
+        database: "fitness_tracker",
+        port: 27017,
+        pool_size: 2
+      )
 
     {:ok, conn}
   end
