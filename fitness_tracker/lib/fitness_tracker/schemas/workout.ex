@@ -14,5 +14,4 @@ defmodule FitnessTracker.Schemas.Workout do
       date_worked_out: workout.date_worked_out
     }
   end
-
 end

@@ -184,54 +184,63 @@ defmodule FitnessTracker.Router do
 
          # Enhanced ingredient validation
          {:ok, ingredients} <- validate_ingredients(meal_params["ingredients"]),
-
-         {:ok, meal} <- Meal.new(%{
-           meal_name: meal_params["meal_name"],
-           calories: meal_params["calories"],
-           protein: meal_params["protein"],
-           carbs: meal_params["carbs"],
-           fat: meal_params["fat"],
-           ingredients: ingredients,
-           date_eaten: meal_params["date_eaten"]
-         }),
-         profile when not is_nil(profile) <- Mongo.find_one(:mongo, "profiles", %{username: username}),
+         {:ok, meal} <-
+           Meal.new(%{
+             meal_name: meal_params["meal_name"],
+             calories: meal_params["calories"],
+             protein: meal_params["protein"],
+             carbs: meal_params["carbs"],
+             fat: meal_params["fat"],
+             ingredients: ingredients,
+             date_eaten: meal_params["date_eaten"]
+           }),
+         profile when not is_nil(profile) <-
+           Mongo.find_one(:mongo, "profiles", %{username: username}),
          # Check if meal already exists for this date
-         nil <- Enum.find(profile["meal_log"] || [], fn existing ->
-           existing["meal_name"] == meal_params["meal_name"] &&
-           existing["date_eaten"] == meal_params["date_eaten"]
-         end),
-         {:ok, _} <- Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-           "$push": %{"meal_log" => Meal.to_json(meal)}
-         }) do
-        send_resp(conn, 201, Jason.encode!(%{message: "Meal added successfully"}))
-      else
-        {:error, message} when is_binary(message) ->
-          send_resp(conn, 400, message)
-        nil ->
-          send_resp(conn, 404, "Profile not found")
-        {:error, _} ->
-          send_resp(conn, 400, "Invalid meal parameters")
-        _ ->
-          send_resp(conn, 409, "Meal already exists for this date")
+         nil <-
+           Enum.find(profile["meal_log"] || [], fn existing ->
+             existing["meal_name"] == meal_params["meal_name"] &&
+               existing["date_eaten"] == meal_params["date_eaten"]
+           end),
+         {:ok, _} <-
+           Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+             "$push": %{"meal_log" => Meal.to_json(meal)}
+           }) do
+      send_resp(conn, 201, Jason.encode!(%{message: "Meal added successfully"}))
+    else
+      {:error, message} when is_binary(message) ->
+        send_resp(conn, 400, message)
+
+      nil ->
+        send_resp(conn, 404, "Profile not found")
+
+      {:error, _} ->
+        send_resp(conn, 400, "Invalid meal parameters")
+
+      _ ->
+        send_resp(conn, 409, "Meal already exists for this date")
     end
   end
 
   # Add this helper function
   defp validate_ingredients(ingredients) when is_list(ingredients) do
-    results = Enum.map(ingredients, fn ingredient ->
-      case ingredient do
-        %{"name" => name} when is_binary(name) and name != "" ->
-          FitnessTracker.Schemas.Ingredient.new(ingredient)
-        _ ->
-          {:error, "each ingredient must have a valid name"}
-      end
-    end)
+    results =
+      Enum.map(ingredients, fn ingredient ->
+        case ingredient do
+          %{"name" => name} when is_binary(name) and name != "" ->
+            FitnessTracker.Schemas.Ingredient.new(ingredient)
+
+          _ ->
+            {:error, "each ingredient must have a valid name"}
+        end
+      end)
 
     case Enum.find(results, &match?({:error, _}, &1)) do
       nil -> {:ok, results}
       {:error, message} -> {:error, message}
     end
   end
+
   defp validate_ingredients(_), do: {:error, "ingredients must be a list"}
 
   delete "/ft/profile/:username/workout/:workout_name/:date" do
@@ -393,6 +402,134 @@ defmodule FitnessTracker.Router do
 
       {:error, error} ->
         send_resp(conn, 500, "Failed to delete meal: #{inspect(error)}")
+    end
+  end
+
+  # Get all workouts for a user
+  get "/ft/profile/:username/workout" do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        send_resp(conn, 404, "Profile not found")
+
+      profile ->
+        case Map.get(profile, "workout_log", []) do
+          workout_log when is_list(workout_log) ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Jason.encode!(%{workouts: workout_log}))
+
+          _ ->
+            send_resp(conn, 500, "Error retrieving workout log")
+        end
+    end
+  end
+
+  # Get specific workout by name and date
+  get "/ft/profile/:username/workout/:workout_name/:date" do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        send_resp(conn, 404, "Profile not found")
+
+      profile ->
+        workout =
+          profile
+          |> Map.get("workout_log", [])
+          |> Enum.find(fn workout ->
+            workout["workout_name"] == workout_name &&
+              workout["date_worked_out"] == date
+          end)
+
+        case workout do
+          nil ->
+            send_resp(conn, 404, "Workout not found")
+
+          workout ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Jason.encode!(workout))
+        end
+    end
+  end
+
+  # Get all meals for a user
+  get "/ft/profile/:username/meal" do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        send_resp(conn, 404, "Profile not found")
+
+      profile ->
+        case Map.get(profile, "meal_log", []) do
+          meal_log when is_list(meal_log) ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Jason.encode!(%{meals: meal_log}))
+
+          _ ->
+            send_resp(conn, 500, "Error retrieving meal log")
+        end
+    end
+  end
+
+  # Get specific meal by name and date
+  get "/ft/profile/:username/meal/:meal_name/:date" do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        send_resp(conn, 404, "Profile not found")
+
+      profile ->
+        meal =
+          profile
+          |> Map.get("meal_log", [])
+          |> Enum.find(fn meal ->
+            meal["meal_name"] == meal_name &&
+              meal["date_eaten"] == date
+          end)
+
+        case meal do
+          nil ->
+            send_resp(conn, 404, "Meal not found")
+
+          meal ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(200, Jason.encode!(meal))
+        end
+    end
+  end
+
+  # Delete entire workout log
+  delete "/ft/profile/:username/workout/all" do
+    case Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+           "$set": %{
+             workout_log: []
+           }
+         }) do
+      {:ok, %{modified_count: 1}} ->
+        send_resp(conn, 200, Jason.encode!(%{message: "Workout log cleared successfully"}))
+
+      {:ok, %{modified_count: 0}} ->
+        send_resp(conn, 404, "Profile not found")
+
+      {:error, error} ->
+        send_resp(conn, 500, "Failed to clear workout log: #{inspect(error)}")
+    end
+  end
+
+  # Delete entire meal log
+  delete "/ft/profile/:username/meal/all" do
+    case Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+           "$set": %{
+             meal_log: []
+           }
+         }) do
+      {:ok, %{modified_count: 1}} ->
+        send_resp(conn, 200, Jason.encode!(%{message: "Meal log cleared successfully"}))
+
+      {:ok, %{modified_count: 0}} ->
+        send_resp(conn, 404, "Profile not found")
+
+      {:error, error} ->
+        send_resp(conn, 500, "Failed to clear meal log: #{inspect(error)}")
     end
   end
 
