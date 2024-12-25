@@ -41,7 +41,6 @@ int main()
 
 
     // Run the web service app.
-    // Enable CORS
     app.port(15963).run();
 
     // save the profiles to json file
