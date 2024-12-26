@@ -3,7 +3,7 @@ defmodule FitnessTracker.Schemas.Profile do
   @moduledoc """
   Schema and functions for handling user profiles.
   """
-
+  @derive Jason.Encoder
   defstruct [
     :first_name,
     :last_name,
@@ -36,7 +36,7 @@ defmodule FitnessTracker.Schemas.Profile do
       weight: weight
     }
 
-    with {:ok, profile} <- validate_profile(attrs) do
+    with {:ok, _profile} <- validate_profile(attrs) do
       {:ok,
        %__MODULE__{
          first_name: first_name,
@@ -115,5 +115,65 @@ defmodule FitnessTracker.Schemas.Profile do
       weight: json["weight"],
       date_account_created: json["dateAccountCreated"]
     }
+  end
+
+  def create(attrs) do
+    case new(attrs) do
+      {:ok, profile} ->
+        # Check if profile already exists
+        case Mongo.find_one(:mongo, "profiles", %{username: profile.username}) do
+          nil ->
+            case Mongo.insert_one(:mongo, "profiles", to_json(profile)) do
+              {:ok, _} -> {:ok, profile}
+              {:error, error} -> {:error, error}
+            end
+
+          _ ->
+            {:error, :username_exists}
+        end
+
+      {:error, message} ->
+        {:error, message}
+    end
+  end
+
+  def get_all() do
+    case Mongo.find(:mongo, "profiles", %{}) |> Enum.to_list() do
+      profiles when is_list(profiles) ->
+        Enum.map(profiles, fn profile ->
+          profile |> Map.drop(["_id", "password"]) |> from_json()
+        end)
+
+      _ ->
+        {:error, :retrieval_failed}
+    end
+  end
+
+  def get_by_username(username) do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil -> {:error, :not_found}
+      profile -> {:ok, profile |> Map.drop(["_id", "password"]) |> from_json()}
+    end
+  end
+
+  def update(username, attrs) do
+    with {:ok, profile} <- new(attrs),
+         profile_json when not is_nil(profile_json) <-
+           Mongo.find_one(:mongo, "profiles", %{username: username}),
+         {:ok, _} <-
+           Mongo.update_one(:mongo, "profiles", %{username: username}, %{"$set": to_json(profile)}) do
+      {:ok, profile}
+    else
+      nil -> {:error, :not_found}
+      {:error, message} -> {:error, message}
+    end
+  end
+
+  def delete(username) do
+    case Mongo.delete_one(:mongo, "profiles", %{username: username}) do
+      {:ok, %{deleted_count: 1}} -> :ok
+      {:ok, %{deleted_count: 0}} -> {:error, :not_found}
+      {:error, error} -> {:error, error}
+    end
   end
 end

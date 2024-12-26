@@ -1,4 +1,5 @@
 defmodule FitnessTracker.Schemas.Set do
+  @derive Jason.Encoder
   defstruct [:reps, :weight]
 
   def new(attrs) do

@@ -1,4 +1,5 @@
 defmodule FitnessTracker.Schemas.Ingredient do
+  @derive Jason.Encoder
   defstruct [:name]
 
   def new(attrs) do
@@ -9,6 +10,12 @@ defmodule FitnessTracker.Schemas.Ingredient do
   def to_json(%__MODULE__{} = ingredient) do
     %{
       name: ingredient.name
+    }
+  end
+
+  def from_json(json) when is_map(json) do
+    %__MODULE__{
+      name: json["name"]
     }
   end
 end
