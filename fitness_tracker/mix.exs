@@ -14,7 +14,7 @@ defmodule FitnessTracker.MixProject do
   def application do
     [
       # This is correct
-      extra_applications: [:logger, :mongodb_driver],
+      extra_applications: [:logger, :mongodb_driver, :cors_plug],
       mod: {FitnessTracker.Application, []}
     ]
   end
@@ -27,7 +27,8 @@ defmodule FitnessTracker.MixProject do
       {:plug, "~> 1.14"},
       {:plug_cowboy, "~> 2.6"},
       {:jason, "~> 1.2"},
-      {:argon2_elixir, "~> 3.0"}
+      {:argon2_elixir, "~> 3.0"},
+      {:cors_plug, "~> 3.0"}
     ]
   end
 end

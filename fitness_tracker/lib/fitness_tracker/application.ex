@@ -14,7 +14,22 @@ defmodule FitnessTracker.Application do
       # Then your other services
       {
         Plug.Cowboy,
-        scheme: :http, plug: FitnessTracker.Router, options: [port: 4001]
+        scheme: :http,
+        plug: FitnessTracker.Router,
+        options: [
+          port: 4001,
+          dispatch: [
+            {:_,
+             [
+               {"/ws", MyApp.WebSocketHandler, []},
+               {:_, Plug.Cowboy.Handler,
+                {FitnessTracker.Router,
+                 [
+                   cors_plug_opts: [origin: ["http://localhost:3001"]]
+                 ]}}
+             ]}
+          ]
+        ]
       }
     ]
 

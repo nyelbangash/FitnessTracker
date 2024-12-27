@@ -5,6 +5,7 @@ defmodule FitnessTracker.Router do
   alias FitnessTracker.Schemas.{Profile, Workout, Meal}
   require Logger
 
+  plug(CORSPlug, origin: ["http://localhost:3001"])
   plug(:match)
 
   plug(Plug.Parsers,
@@ -14,6 +15,26 @@ defmodule FitnessTracker.Router do
   )
 
   plug(:dispatch)
+
+  # Add this route before your other routes
+  post "/ft/login" do
+    with {:ok, %{"username" => username, "password" => password}} <-
+           Map.fetch(conn.body_params, "credentials"),
+         {:ok, profile} <- Profile.authenticate(username, password) do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(200, Jason.encode!(%{success: true, profile: profile}))
+    else
+      {:error, :not_found} ->
+        send_resp(conn, 404, Jason.encode!(%{success: false, message: "User not found"}))
+
+      {:error, :invalid_credentials} ->
+        send_resp(conn, 401, Jason.encode!(%{success: false, message: "Invalid credentials"}))
+
+      _ ->
+        send_resp(conn, 400, Jason.encode!(%{success: false, message: "Invalid request"}))
+    end
+  end
 
   # Create profile
   post "/ft/profile" do

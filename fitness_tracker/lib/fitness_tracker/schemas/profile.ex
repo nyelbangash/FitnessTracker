@@ -176,4 +176,16 @@ defmodule FitnessTracker.Schemas.Profile do
       {:error, error} -> {:error, error}
     end
   end
+
+  def authenticate(username, password) do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        {:error, :not_found}
+      profile ->
+        case profile["password"] do
+          ^password -> {:ok, profile |> Map.drop(["_id", "password"]) |> from_json()}
+          _ -> {:error, :invalid_credentials}
+        end
+    end
+  end
 end
