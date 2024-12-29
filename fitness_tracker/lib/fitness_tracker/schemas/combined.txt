@@ -1,3 +1,166 @@
+defmodule FitnessTracker.Schemas.LogBehavior do
+  @callback new(map()) :: {:ok, struct()}
+  @callback create(String.t(), map()) :: {:ok, struct()} | {:error, term()}
+  @callback get_all(String.t()) :: {:ok, list(struct())} | {:error, term()}
+  @callback get(String.t(), String.t(), String.t()) :: {:ok, struct()} | {:error, term()}
+  @callback update(String.t(), String.t(), String.t(), map()) ::
+              {:ok, struct()} | {:error, term()}
+  @callback delete(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
+  @callback clear_log(String.t()) :: :ok | {:error, term()}
+  @callback to_json(struct()) :: map()
+  @callback from_json(map()) :: struct()
+end
+
+defmodule FitnessTracker.Schemas.BaseLog do
+  @moduledoc """
+  Provides base implementation for common logging functionality.
+  """
+
+  defmacro __using__(opts) do
+    quote do
+      @behaviour FitnessTracker.Schemas.LogBehavior
+
+      @log_type unquote(opts[:log_type])
+      @name_field unquote(opts[:name_field])
+      @date_field unquote(opts[:date_field])
+
+      # Shared get_all implementation
+      def get_all(username) do
+        case get_profile(username) do
+          {:ok, %{@log_type => log}} -> {:ok, Enum.map(log, &from_json/1)}
+          {:error, :profile_not_found} -> {:error, :profile_not_found}
+          _ -> {:error, "#{@log_type}_not_found"}
+        end
+      end
+
+      # Shared get implementation
+      def get(username, name, date) do
+        with {:ok, profile} <- get_profile(username),
+             item when not is_nil(item) <- find_item(profile[@log_type], name, date) do
+          {:ok, from_json(item)}
+        else
+          nil -> {:error, :not_found}
+          error -> error
+        end
+      end
+
+      # Shared delete implementation
+      def delete(username, name, date) do
+        case remove_item(username, name, date) do
+          {:ok, %{modified_count: 1}} -> :ok
+          {:ok, %{modified_count: 0}} -> {:error, :not_found}
+          {:error, error} -> {:error, error}
+        end
+      end
+
+      # Shared clear_log implementation
+      def clear_log(username) do
+        case clear_all(username) do
+          {:ok, %{modified_count: 1}} -> :ok
+          {:ok, %{modified_count: 0}} -> {:error, :profile_not_found}
+          {:error, error} -> {:error, error}
+        end
+      end
+
+      # Shared private functions
+      defp get_profile(username) do
+        case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+          nil -> {:error, :profile_not_found}
+          profile -> {:ok, profile}
+        end
+      end
+
+      defp matches_criteria?(item, name, date) do
+        item[@name_field] == name && item[@date_field] == date
+      end
+
+      defp find_item(log, name, date) do
+        Enum.find(log, &matches_criteria?(&1, name, date))
+      end
+
+      defp remove_item(username, name, date) do
+        Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+          "$pull": %{
+            @log_type => %{
+              @name_field => name,
+              @date_field => date
+            }
+          }
+        })
+      end
+
+      defp clear_all(username) do
+        Mongo.update_one(:mongo, "profiles", %{username: username}, %{"$set": %{@log_type => []}})
+      end
+
+      defp save_item(username, item) do
+        Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+          "$push": %{@log_type => to_json(item)}
+        })
+      end
+
+      # Allow overriding any of these functions
+      defoverridable get_all: 1, get: 3, delete: 3, clear_log: 1
+
+      def save_template(username, template_name, data) do
+        with {:ok, profile} <- get_profile(username),
+             true <- validate_template_name(template_name, profile),
+             template <- prepare_template(data, template_name) do
+          Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+            "$push": %{templates_field() => to_json(template)}
+          })
+        else
+          false -> {:error, :template_exists}
+          error -> error
+        end
+      end
+
+      def get_template(username, template_name) do
+        with {:ok, profile} <- get_profile(username),
+             template when not is_nil(template) <- find_template(profile, template_name) do
+          {:ok, from_json(template)}
+        else
+          nil -> {:error, :template_not_found}
+          error -> error
+        end
+      end
+
+      def delete_template(username, template_name) do
+        Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+          "$pull": %{templates_field() => %{template_name: template_name}}
+        })
+      end
+
+      defp validate_template_name(name, profile) do
+        templates = Map.get(profile, templates_field(), [])
+        not Enum.any?(templates, &(&1["template_name"] == name))
+      end
+
+      defp find_template(profile, template_name) do
+        profile
+        |> Map.get(templates_field(), [])
+        |> Enum.find(&(&1["template_name"] == template_name))
+      end
+
+      defp templates_field do
+        case @log_type do
+          "workout_log" -> "workout_templates"
+          "meal_log" -> "meal_templates"
+        end
+      end
+
+      defp prepare_template(data, template_name) do
+        Map.put(data, :template_name, template_name)
+      end
+
+      # Allow overriding template functions
+      defoverridable save_template: 3,
+                     get_template: 2,
+                     find_template: 2,
+                     delete_template: 2
+    end
+  end
+end
 defmodule FitnessTracker.Schemas.Date do
   defstruct [:day, :month, :year]
 
@@ -18,204 +181,248 @@ end
 defmodule FitnessTracker.Schemas.Exercise do
   alias FitnessTracker.Schemas.Set
   @derive Jason.Encoder
-  defstruct [:sets, :exercise_name]
+  defstruct [
+    :exercise_name,
+    :sets,
+    # New: Target rep range
+    :target_reps,
+    # New: Target weight
+    :target_weight,
+    # New: Rest time between sets
+    :rest_time,
+    # New: Target RPE
+    :rpe_target,
+    # New: Form notes, etc.
+    :notes,
+    # New: Weight from last session
+    :previous_weight,
+    # New: PR for this exercise
+    :personal_record,
+    # New: Number of sets completed
+    :completed_sets
+  ]
 
   def new(attrs) do
-    {:ok, struct(__MODULE__, attrs)}
+    with {:ok, valid_attrs} <- validate_exercise(attrs) do
+      {:ok, struct(__MODULE__, valid_attrs)}
+    end
   end
 
   def to_json(%__MODULE__{} = exercise) do
     %{
+      exercise_name: exercise.exercise_name,
       sets: Enum.map(exercise.sets, &Set.to_json/1),
-      exercise_name: exercise.exercise_name
+      target_reps: exercise.target_reps,
+      target_weight: exercise.target_weight,
+      rest_time: exercise.rest_time,
+      rpe_target: exercise.rpe_target,
+      notes: exercise.notes,
+      previous_weight: exercise.previous_weight,
+      personal_record: exercise.personal_record,
+      completed_sets: exercise.completed_sets
     }
   end
 
   def from_json(json) when is_map(json) do
     %__MODULE__{
-      sets: Enum.map(json["sets"], &Set.from_json/1),
-      exercise_name: json["exercise_name"]
+      exercise_name: json["exercise_name"],
+      sets: Enum.map(json["sets"] || [], &Set.from_json/1),
+      target_reps: json["target_reps"],
+      target_weight: json["target_weight"],
+      rest_time: json["rest_time"],
+      rpe_target: json["rpe_target"],
+      notes: json["notes"],
+      previous_weight: json["previous_weight"],
+      personal_record: json["personal_record"],
+      completed_sets: json["completed_sets"]
     }
+  end
+
+  defp validate_exercise(attrs) do
+    with true <- is_binary(attrs["exercise_name"]) || {:error, "exercise_name is required"},
+         true <- is_list(attrs["sets"]) || {:error, "sets must be a list"} do
+      {:ok, attrs}
+    end
   end
 end
 defmodule FitnessTracker.Schemas.Ingredient do
   @derive Jason.Encoder
-  defstruct [:name]
+  defstruct [
+    :name,
+    # New: Amount of ingredient
+    :amount,
+    # New: Unit of measurement
+    :unit,
+    # New: Calories per serving
+    :calories,
+    # New: Protein content
+    :protein,
+    # New: Carb content
+    :carbs,
+    # New: Fat content
+    :fat,
+    # New: Mark as favorite ingredient
+    :is_favorite
+  ]
 
   def new(attrs) do
     attrs = Enum.map(attrs, fn {key, value} -> {String.to_atom(key), value} end)
-    struct(__MODULE__, attrs)
-  end
-
-  def to_json(%__MODULE__{} = ingredient) do
-    %{
-      name: ingredient.name
-    }
-  end
-
-  def from_json(json) when is_map(json) do
-    %__MODULE__{
-      name: json["name"]
-    }
-  end
-end
-defmodule FitnessTracker.Schemas.Meal do
-  alias FitnessTracker.Schemas.Ingredient
-  @derive Jason.Encoder
-  defstruct [:meal_name, :calories, :protein, :carbs, :fat, :ingredients, :date_eaten]
-
-  def new(attrs) do
-    attrs =
-      Enum.map(attrs, fn
-        {key, value} when is_atom(key) -> {key, value}
-        {key, value} when is_binary(key) -> {String.to_atom(key), value}
-      end)
-
     {:ok, struct(__MODULE__, attrs)}
   end
 
-  def to_json(%__MODULE__{} = meal) do
-    %{
-      meal_name: meal.meal_name,
-      calories: meal.calories,
-      protein: meal.protein,
-      carbs: meal.carbs,
-      fat: meal.fat,
-      ingredients: Enum.map(meal.ingredients, &Ingredient.to_json/1),
-      date_eaten: meal.date_eaten
-    }
+  def to_json(%__MODULE__{} = ingredient) do
+    Map.take(ingredient, [:name, :amount, :unit, :calories, :protein, :carbs, :fat, :is_favorite])
   end
 
-  def create(username, attrs) do
-    with {:ok, meal_params} <- Map.fetch(attrs, "meal"),
-         true <- is_binary(meal_params["meal_name"]) || {:error, "meal_name is required"},
-         true <- is_number(meal_params["calories"]) || {:error, "calories must be a number"},
-         true <- is_number(meal_params["protein"]) || {:error, "protein must be a number"},
-         true <- is_number(meal_params["carbs"]) || {:error, "carbs must be a number"},
-         true <- is_number(meal_params["fat"]) || {:error, "fat must be a number"},
-         true <- is_binary(meal_params["date_eaten"]) || {:error, "date_eaten is required"},
-         true <- is_list(meal_params["ingredients"]) || {:error, "ingredients must be a list"},
-         {:ok, ingredients} <- validate_ingredients(meal_params["ingredients"]),
-         {:ok, meal} <-
-           new(%{
-             meal_name: meal_params["meal_name"],
-             calories: meal_params["calories"],
-             protein: meal_params["protein"],
-             carbs: meal_params["carbs"],
-             fat: meal_params["fat"],
-             ingredients: ingredients,
-             date_eaten: meal_params["date_eaten"]
-           }),
-         profile when not is_nil(profile) <-
-           Mongo.find_one(:mongo, "profiles", %{username: username}),
-         nil <- Enum.find(profile["meal_log"] || [], &matching_meal?(&1, meal_params)),
-         {:ok, _} <-
-           Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-             "$push": %{"meal_log" => to_json(meal)}
-           }) do
-      {:ok, meal}
-    else
-      {:error, message} -> {:error, message}
-      nil -> {:error, :profile_not_found}
-      _ -> {:error, :meal_exists}
-    end
-  end
-
-  def get_all(username) do
-    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
-      nil ->
-        {:error, :profile_not_found}
-
-      %{"meal_log" => meal_log} ->
-        {:ok, Enum.map(meal_log, &from_json/1)}
-
-      _ ->
-        {:error, :meal_log_not_found}
-    end
-  end
-
-  def get(username, meal_name, date) do
-    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
-      nil ->
-        {:error, :profile_not_found}
-
-      profile ->
-        case find_meal(profile["meal_log"], meal_name, date) do
-          nil -> {:error, :not_found}
-          meal -> {:ok, from_json(meal)}
-        end
-    end
-  end
-
-  def update(username, meal_name, date, attrs) do
-    with {:ok, meal_params} <- Map.fetch(attrs, "meal"),
-         {:ok, ingredients} <- validate_ingredients(meal_params["ingredients"]),
-         {:ok, updated_meal} <-
-           new(%{
-             meal_name: meal_params["meal_name"],
-             calories: meal_params["calories"],
-             protein: meal_params["protein"],
-             carbs: meal_params["carbs"],
-             fat: meal_params["fat"],
-             ingredients: ingredients,
-             date_eaten: meal_params["date_eaten"]
-           }),
-         profile when not is_nil(profile) <-
-           Mongo.find_one(:mongo, "profiles", %{username: username}),
-         true <- has_meal?(profile["meal_log"], meal_name, date) do
-      update_meal(username, meal_name, date, to_json(updated_meal))
-    else
-      false -> create(username, attrs)
-      nil -> {:error, :profile_not_found}
-      error -> error
-    end
-  end
-
-  def delete(username, meal_name, date) do
-    case Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-           "$pull": %{
-             meal_log: %{
-               meal_name: meal_name,
-               date_eaten: date
-             }
-           }
-         }) do
-      {:ok, %{modified_count: 1}} -> :ok
-      {:ok, %{modified_count: 0}} -> {:error, :not_found}
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  def clear_log(username) do
-    case Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-           "$set": %{
-             meal_log: []
-           }
-         }) do
-      {:ok, %{modified_count: 1}} -> :ok
-      {:ok, %{modified_count: 0}} -> {:error, :profile_not_found}
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  # ... helper functions ...
   def from_json(json) when is_map(json) do
     %__MODULE__{
-      meal_name: json["meal_name"],
+      name: json["name"],
+      amount: json["amount"],
+      unit: json["unit"],
       calories: json["calories"],
       protein: json["protein"],
       carbs: json["carbs"],
       fat: json["fat"],
-      ingredients: Enum.map(json["ingredients"] || [], &Ingredient.from_json/1),
-      date_eaten: json["date_eaten"]
+      is_favorite: json["is_favorite"]
     }
+  end
+end
+defmodule FitnessTracker.Schemas.Meal do
+  use FitnessTracker.Schemas.BaseLog,
+    log_type: "meal_log",
+    name_field: "name",
+    date_field: "date"
+
+  alias FitnessTracker.Schemas.Ingredient
+  @derive Jason.Encoder
+  defstruct [
+    :name,
+    :date,
+    # New: Time the meal was eaten
+    :time_eaten,
+    # New: breakfast/lunch/dinner/snack
+    :meal_type,
+    :calories,
+    :protein,
+    :carbs,
+    :fat,
+    :ingredients,
+    # New: Marked as favorite
+    :is_favorite,
+    # New: Part of recurring meals
+    :is_recurring,
+    # New: Shows in quick access
+    :is_quick_access,
+    # New: If saved as template
+    :template_name,
+    # New: Any notes about the meal
+    :notes,
+    # New: For recurring meals (e.g., "Weekdays, 8:00 AM")
+    :schedule
+  ]
+
+  def new(attrs), do: {:ok, struct(__MODULE__, attrs)}
+
+  def create(username, attrs) do
+    with {:ok, meal_params} <- extract_meal_params(attrs),
+         {:ok, ingredients} <- validate_ingredients(meal_params["ingredients"]),
+         {:ok, meal} <- build_meal(meal_params, ingredients),
+         :ok <- validate_unique_meal(username, meal_params),
+         {:ok, _} <- save_meal(username, meal) do
+      {:ok, meal}
+    end
+  end
+
+  def create_template(username, attrs) do
+    with {:ok, meal} <- create(username, attrs),
+         :ok <- save_as_template(username, meal) do
+      {:ok, meal}
+    end
+  end
+
+  def get_templates(username) do
+    case get_profile(username) do
+      {:ok, profile} -> {:ok, profile.meal_templates || []}
+      error -> error
+    end
+  end
+
+  def toggle_favorite(username, meal_name, date) do
+    with {:ok, _profile} <- get_profile(username),
+         {:ok, meal} <- get(username, meal_name, date) do
+      updated_meal = %{meal | is_favorite: !meal.is_favorite}
+
+      case update_meal(username, meal_name, date, to_json(updated_meal)) do
+        {:ok, _} -> {:ok, updated_meal}
+        error -> error
+      end
+    end
+  end
+
+  def set_recurring(username, meal_name, date, schedule) do
+    with {:ok, _profile} <- get_profile(username),
+         {:ok, meal} <- get(username, meal_name, date) do
+      updated_meal = %{meal | is_recurring: true, schedule: schedule}
+
+      case update_meal(username, meal_name, date, to_json(updated_meal)) do
+        {:ok, _} -> {:ok, updated_meal}
+        error -> error
+      end
+    end
+  end
+
+  def toggle_quick_access(username, meal_name, date) do
+    with {:ok, _profile} <- get_profile(username),
+         {:ok, meal} <- get(username, meal_name, date) do
+      updated_meal = %{meal | is_quick_access: !meal.is_quick_access}
+
+      case update_meal(username, meal_name, date, to_json(updated_meal)) do
+        {:ok, _} -> {:ok, updated_meal}
+        error -> error
+      end
+    end
+  end
+
+  def get_favorites(username) do
+    with {:ok, meals} <- get_all(username) do
+      {:ok, Enum.filter(meals, & &1.is_favorite)}
+    end
+  end
+
+  def get_quick_access(username) do
+    with {:ok, meals} <- get_all(username) do
+      {:ok, Enum.filter(meals, & &1.is_quick_access)}
+    end
+  end
+
+  def get_recurring(username) do
+    with {:ok, meals} <- get_all(username) do
+      {:ok, Enum.filter(meals, & &1.is_recurring)}
+    end
+  end
+
+  def update(username, meal_name, date, attrs) do
+    with {:ok, meal_params} <- extract_meal_params(attrs),
+         {:ok, ingredients} <- validate_ingredients(meal_params["ingredients"]),
+         {:ok, updated_meal} <- build_meal(meal_params, ingredients),
+         {:ok, profile} <- get_profile(username) do
+      update_existing_or_create(username, profile, meal_name, date, updated_meal, attrs)
+    end
+  end
+
+  # Private functions specific to Meal
+  defp extract_meal_params(attrs) do
+    case Map.fetch(attrs, "meal") do
+      {:ok, params} -> {:ok, params}
+      :error -> {:error, "Missing meal parameters"}
+    end
   end
 
   defp validate_ingredients(ingredients) when is_list(ingredients) do
     results = Enum.map(ingredients, &parse_ingredient/1)
 
     case Enum.find(results, &match?({:error, _}, &1)) do
-      nil -> {:ok, results}
+      nil -> {:ok, Enum.map(results, fn {:ok, ingredient} -> ingredient end)}
       {:error, message} -> {:error, message}
     end
   end
@@ -225,27 +432,89 @@ defmodule FitnessTracker.Schemas.Meal do
   defp parse_ingredient(ingredient) do
     case ingredient do
       %{"name" => name} when is_binary(name) and name != "" ->
-        Ingredient.new(ingredient)
+        {:ok, Ingredient.new(ingredient)}
 
       _ ->
         {:error, "each ingredient must have a valid name"}
     end
   end
 
-  defp matching_meal?(meal, meal_params) do
-    meal["meal_name"] == meal_params["meal_name"] &&
-      meal["date_eaten"] == meal_params["date_eaten"]
+  defp build_meal(params, ingredients) do
+    with true <- is_binary(params["name"]) || {:error, "name is required"},
+         true <- is_binary(params["meal_type"]) || {:error, "meal_type is required"},
+         true <- is_binary(params["time_eaten"]) || {:error, "time_eaten is required"},
+         true <- is_number(params["calories"]) || {:error, "calories must be a number"},
+         true <- is_number(params["protein"]) || {:error, "protein must be a number"},
+         true <- is_number(params["carbs"]) || {:error, "carbs must be a number"},
+         true <- is_number(params["fat"]) || {:error, "fat must be a number"},
+         true <- is_binary(params["date"]) || {:error, "date is required"} do
+      new(%{
+        name: params["name"],
+        date: params["date"],
+        time_eaten: params["time_eaten"],
+        meal_type: params["meal_type"],
+        calories: params["calories"],
+        protein: params["protein"],
+        carbs: params["carbs"],
+        fat: params["fat"],
+        ingredients: ingredients,
+        is_favorite: params["is_favorite"] || false,
+        is_recurring: params["is_recurring"] || false,
+        is_quick_access: params["is_quick_access"] || false,
+        template_name: params["template_name"],
+        notes: params["notes"],
+        schedule: params["schedule"]
+      })
+    end
   end
 
-  defp find_meal(meal_log, meal_name, date) do
-    Enum.find(meal_log, fn meal ->
-      meal["meal_name"] == meal_name &&
-        meal["date_eaten"] == date
-    end)
+  defp save_as_template(username, meal) do
+    case get_profile(username) do
+      {:ok, _profile} ->
+        template = Map.put(meal, :template_name, meal.name)
+
+        Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+          "$push": %{meal_templates: to_json(template)}
+        })
+
+      error ->
+        error
+    end
+  end
+
+  defp validate_unique_meal(username, meal_params) do
+    case get_profile(username) do
+      {:ok, profile} ->
+        case Enum.find(profile["meal_log"] || [], &matching_meal?(&1, meal_params)) do
+          nil -> :ok
+          _ -> {:error, :meal_exists}
+        end
+
+      error ->
+        error
+    end
+  end
+
+  defp matching_meal?(meal, meal_params) do
+    matches_criteria?(meal, meal_params["name"], meal_params["date"])
+  end
+
+  defp save_meal(username, meal) do
+    Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+      "$push": %{meal_log: to_json(meal)}
+    })
+  end
+
+  defp update_existing_or_create(username, profile, meal_name, date, updated_meal, attrs) do
+    if has_meal?(profile["meal_log"], meal_name, date) do
+      update_meal(username, meal_name, date, to_json(updated_meal))
+    else
+      create(username, attrs)
+    end
   end
 
   defp has_meal?(meal_log, meal_name, date) do
-    meal_log |> find_meal(meal_name, date) |> is_map()
+    meal_log |> find_item(meal_name, date) |> is_map()
   end
 
   defp update_meal(username, meal_name, date, updated_meal) do
@@ -256,8 +525,8 @@ defmodule FitnessTracker.Schemas.Meal do
         username: username,
         meal_log: %{
           "$elemMatch": %{
-            meal_name: meal_name,
-            date_eaten: date
+            name: meal_name,
+            date: date
           }
         }
       },
@@ -268,12 +537,102 @@ defmodule FitnessTracker.Schemas.Meal do
       }
     )
   end
+
+  # Add these functions to your Meal module:
+
+  def get_daily_totals(username, date) do
+    with {:ok, meals} <- get_all(username) do
+      daily_meals = Enum.filter(meals, &(&1.date == date))
+
+      totals =
+        Enum.reduce(
+          daily_meals,
+          %{
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            meals: []
+          },
+          fn meal, acc ->
+            %{
+              calories: acc.calories + meal.calories,
+              protein: acc.protein + meal.protein,
+              carbs: acc.carbs + meal.carbs,
+              fat: acc.fat + meal.fat,
+              meals: [meal_summary(meal) | acc.meals]
+            }
+          end
+        )
+
+      {:ok, %{totals | meals: Enum.reverse(totals.meals)}}
+    end
+  end
+
+  # Fix JSON handling to include all fields
+  def to_json(%__MODULE__{} = meal) do
+    %{
+      name: meal.name,
+      date: meal.date,
+      time_eaten: meal.time_eaten,
+      meal_type: meal.meal_type,
+      calories: meal.calories,
+      protein: meal.protein,
+      carbs: meal.carbs,
+      fat: meal.fat,
+      ingredients: Enum.map(meal.ingredients, &Ingredient.to_json/1),
+      is_favorite: meal.is_favorite,
+      is_recurring: meal.is_recurring,
+      is_quick_access: meal.is_quick_access,
+      template_name: meal.template_name,
+      notes: meal.notes,
+      schedule: meal.schedule
+    }
+  end
+
+  def from_json(json) when is_map(json) do
+    %__MODULE__{
+      name: json["name"],
+      date: json["date"],
+      time_eaten: json["time_eaten"],
+      meal_type: json["meal_type"],
+      calories: json["calories"],
+      protein: json["protein"],
+      carbs: json["carbs"],
+      fat: json["fat"],
+      ingredients: Enum.map(json["ingredients"] || [], &Ingredient.from_json/1),
+      is_favorite: json["is_favorite"],
+      is_recurring: json["is_recurring"],
+      is_quick_access: json["is_quick_access"],
+      template_name: json["template_name"],
+      notes: json["notes"],
+      schedule: json["schedule"]
+    }
+  end
+
+  # Add these private helper functions:
+
+  defp meal_summary(meal) do
+    %{
+      name: meal.name,
+      time: meal.time_eaten,
+      type: meal.meal_type,
+      calories: meal.calories,
+      macros: %{
+        protein: meal.protein,
+        carbs: meal.carbs,
+        fat: meal.fat
+      },
+      ingredients: Enum.map(meal.ingredients, & &1.name)
+    }
+  end
 end
-# lib/fitness_tracker/schemas/profile.ex
 defmodule FitnessTracker.Schemas.Profile do
   @moduledoc """
-  Schema and functions for handling user profiles.
+  Schema and functions for handling user profiles, including authentication,
+  nutrition goals, templates, and profile settings.
   """
+
   @derive Jason.Encoder
   defstruct [
     :first_name,
@@ -284,114 +643,52 @@ defmodule FitnessTracker.Schemas.Profile do
     :height,
     :weight,
     :date_account_created,
+    # Daily nutrition targets
+    :nutrition_goals,
+    # Saved workout templates
+    :workout_templates,
+    # Saved meal templates
+    :meal_templates,
+    # Favorite meals
+    :favorite_meals,
+    # Scheduled recurring meals
+    :recurring_meals,
+    # Quick access meals
+    :quick_access_meals,
+    # Currently active workout
+    :active_workout,
     workout_log: [],
     meal_log: []
   ]
 
-  def new(%{
-        "firstName" => first_name,
-        "lastName" => last_name,
-        "username" => username,
-        "password" => password,
-        "dateOfBirth" => date_of_birth,
-        "height" => height,
-        "weight" => weight
-      }) do
-    attrs = %{
-      first_name: first_name,
-      last_name: last_name,
-      username: username,
-      password: password,
-      date_of_birth: date_of_birth,
-      height: height,
-      weight: weight
-    }
+  # ----------------------
+  # Core Profile Functions
+  # ----------------------
 
-    with {:ok, _profile} <- validate_profile(attrs) do
+  def new(attrs) do
+    with {:ok, _valid_attrs} <- validate_profile(attrs) do
       {:ok,
-       %__MODULE__{
-         first_name: first_name,
-         last_name: last_name,
-         username: username,
-         password: password,
-         date_of_birth: date_of_birth,
-         height: height,
-         weight: weight,
-         date_account_created: DateTime.utc_now(),
-         workout_log: [],
-         meal_log: []
-       }}
+       struct(
+         __MODULE__,
+         Map.merge(attrs, %{
+           date_account_created: DateTime.utc_now(),
+           nutrition_goals: default_nutrition_goals(),
+           workout_templates: [],
+           meal_templates: [],
+           favorite_meals: [],
+           recurring_meals: [],
+           quick_access_meals: [],
+           active_workout: nil,
+           workout_log: [],
+           meal_log: []
+         })
+       )}
     end
-  end
-
-  def new(_) do
-    {:error, "Invalid profile parameters"}
-  end
-
-  defp validate_profile(attrs) do
-    with {:ok, _} <- validate_required_fields(attrs),
-         {:ok, _} <- validate_measurements(attrs) do
-      {:ok, attrs}
-    end
-  end
-
-  defp validate_required_fields(attrs) do
-    required_fields = [
-      :first_name,
-      :last_name,
-      :username,
-      :password,
-      :date_of_birth,
-      :height,
-      :weight
-    ]
-
-    case Enum.filter(required_fields, &is_nil(Map.get(attrs, &1))) do
-      [] -> {:ok, attrs}
-      missing_fields -> {:error, "Missing required fields: #{inspect(missing_fields)}"}
-    end
-  end
-
-  defp validate_measurements(%{height: height, weight: weight} = attrs)
-       when is_number(height) and height > 0 and
-              is_number(weight) and weight > 0 do
-    {:ok, attrs}
-  end
-
-  defp validate_measurements(_attrs) do
-    {:error, "Height and weight must be positive numbers"}
-  end
-
-  def to_json(%__MODULE__{} = profile) do
-    %{
-      firstName: profile.first_name,
-      lastName: profile.last_name,
-      username: profile.username,
-      password: profile.password,
-      dateOfBirth: profile.date_of_birth,
-      height: profile.height,
-      weight: profile.weight,
-      dateAccountCreated: profile.date_account_created
-    }
-  end
-
-  def from_json(json) when is_map(json) do
-    %__MODULE__{
-      first_name: json["firstName"],
-      last_name: json["lastName"],
-      username: json["username"],
-      password: json["password"],
-      date_of_birth: json["dateOfBirth"],
-      height: json["height"],
-      weight: json["weight"],
-      date_account_created: json["dateAccountCreated"]
-    }
   end
 
   def create(attrs) do
     case new(attrs) do
       {:ok, profile} ->
-        # Check if profile already exists
         case Mongo.find_one(:mongo, "profiles", %{username: profile.username}) do
           nil ->
             case Mongo.insert_one(:mongo, "profiles", to_json(profile)) do
@@ -408,7 +705,7 @@ defmodule FitnessTracker.Schemas.Profile do
     end
   end
 
-  def get_all() do
+  def get_all do
     case Mongo.find(:mongo, "profiles", %{}) |> Enum.to_list() do
       profiles when is_list(profiles) ->
         Enum.map(profiles, fn profile ->
@@ -447,10 +744,239 @@ defmodule FitnessTracker.Schemas.Profile do
       {:error, error} -> {:error, error}
     end
   end
+
+  # ----------------------
+  # Authentication
+  # ----------------------
+
+  def authenticate(username, password) do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        {:error, :not_found}
+
+      profile ->
+        case profile["password"] do
+          ^password -> {:ok, profile |> Map.drop(["_id", "password"]) |> from_json()}
+          _ -> {:error, :invalid_credentials}
+        end
+    end
+  end
+
+  # ----------------------
+  # Nutrition Goals
+  # ----------------------
+
+  def get_nutrition_goals(username) do
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        {:error, :not_found}
+
+      profile ->
+        case profile["nutrition_goals"] do
+          nil -> {:ok, default_nutrition_goals()}
+          goals -> {:ok, goals}
+        end
+    end
+  end
+
+  def update_nutrition_goals(username, goals) do
+    with true <- validate_nutrition_goals(goals),
+         {:ok, _} <-
+           Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+             "$set": %{nutrition_goals: goals}
+           }) do
+      {:ok, goals}
+    else
+      false -> {:error, "Invalid nutrition goals"}
+      error -> error
+    end
+  end
+
+  # ----------------------
+  # Profile Stats & Settings
+  # ----------------------
+
+  def get_profile_stats(username) do
+    case get_by_username(username) do
+      {:ok, profile} ->
+        {:ok,
+         %{
+           weight: profile.weight,
+           height: profile.height,
+           nutrition_goals: profile.nutrition_goals || default_nutrition_goals()
+         }}
+
+      error ->
+        error
+    end
+  end
+
+  def update_profile_stats(username, stats) do
+    with {:ok, _} <- validate_measurements(stats),
+         {:ok, _} <-
+           Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+             "$set": %{
+               weight: stats.weight,
+               height: stats.height
+             }
+           }) do
+      {:ok, stats}
+    else
+      error -> error
+    end
+  end
+
+  def update_profile_settings(username, settings) do
+    with {:ok, _profile} <- get_by_username(username),
+         {:ok, updated_profile} <- validate_settings(settings),
+         {:ok, _} <-
+           Mongo.update_one(:mongo, "profiles", %{username: username}, %{"$set": updated_profile}) do
+      {:ok, updated_profile}
+    else
+      error -> error
+    end
+  end
+
+  # ----------------------
+  # JSON Conversion
+  # ----------------------
+
+  def to_json(%__MODULE__{} = profile) do
+    %{
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      username: profile.username,
+      password: profile.password,
+      dateOfBirth: profile.date_of_birth,
+      height: profile.height,
+      weight: profile.weight,
+      dateAccountCreated: profile.date_account_created,
+      nutritionGoals: profile.nutrition_goals,
+      workoutTemplates: profile.workout_templates,
+      mealTemplates: profile.meal_templates,
+      favoriteMeals: profile.favorite_meals,
+      recurringMeals: profile.recurring_meals,
+      quickAccessMeals: profile.quick_access_meals,
+      activeWorkout: profile.active_workout,
+      workoutLog: profile.workout_log,
+      mealLog: profile.meal_log
+    }
+  end
+
+  def from_json(json) when is_map(json) do
+    %__MODULE__{
+      first_name: json["firstName"],
+      last_name: json["lastName"],
+      username: json["username"],
+      password: json["password"],
+      date_of_birth: json["dateOfBirth"],
+      height: json["height"],
+      weight: json["weight"],
+      date_account_created: json["dateAccountCreated"],
+      nutrition_goals: json["nutritionGoals"],
+      workout_templates: json["workoutTemplates"],
+      meal_templates: json["mealTemplates"],
+      favorite_meals: json["favoriteMeals"],
+      recurring_meals: json["recurringMeals"],
+      quick_access_meals: json["quickAccessMeals"],
+      active_workout: json["activeWorkout"],
+      workout_log: json["workoutLog"],
+      meal_log: json["mealLog"]
+    }
+  end
+
+  # ----------------------
+  # Private Helper Functions
+  # ----------------------
+
+  defp default_nutrition_goals do
+    %{
+      calories: 2000,
+      protein: 150,
+      carbs: 200,
+      fat: 65
+    }
+  end
+
+  defp validate_profile(attrs) do
+    with {:ok, _} <- validate_required_fields(attrs),
+         {:ok, _} <- validate_measurements(attrs) do
+      {:ok, attrs}
+    end
+  end
+
+  defp validate_required_fields(attrs) do
+    required_fields = [
+      :first_name,
+      :last_name,
+      :username,
+      :password,
+      :date_of_birth,
+      :height,
+      :weight
+    ]
+
+    case Enum.filter(required_fields, &is_nil(Map.get(attrs, &1))) do
+      [] -> {:ok, attrs}
+      missing_fields -> {:error, "Missing required fields: #{inspect(missing_fields)}"}
+    end
+  end
+
+  defp validate_measurements(%{height: height, weight: weight})
+       when is_number(height) and height > 0 and
+              is_number(weight) and weight > 0 do
+    {:ok, %{height: height, weight: weight}}
+  end
+
+  defp validate_measurements(_), do: {:error, "Height and weight must be positive numbers"}
+
+  defp validate_nutrition_goals(goals) do
+    with true <- is_map(goals),
+         true <- is_number(goals.calories) and goals.calories > 0,
+         true <- is_number(goals.protein) and goals.protein > 0,
+         true <- is_number(goals.carbs) and goals.carbs > 0,
+         true <- is_number(goals.fat) and goals.fat > 0 do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp validate_settings(settings) do
+    with true <- validate_optional_measurements(settings),
+         true <- validate_optional_nutrition_goals(settings) do
+      {:ok, settings}
+    else
+      {:error, message} -> {:error, message}
+    end
+  end
+
+  defp validate_optional_measurements(%{height: height, weight: weight} = _settings)
+       when is_number(height) and height > 0 and
+              is_number(weight) and weight > 0 do
+    true
+  end
+
+  defp validate_optional_measurements(_), do: true
+
+  defp validate_optional_nutrition_goals(%{nutrition_goals: goals}) do
+    validate_nutrition_goals(goals)
+  end
+
+  defp validate_optional_nutrition_goals(_), do: true
 end
 defmodule FitnessTracker.Schemas.Set do
   @derive Jason.Encoder
-  defstruct [:reps, :weight]
+  defstruct [
+    :reps,
+    :weight,
+    # New: Rate of Perceived Exertion
+    :rpe,
+    # New: Timestamp of completion
+    :completed_at,
+    # New: Any notes about the set
+    :notes
+  ]
 
   def new(attrs) do
     attrs = Enum.map(attrs, fn {key, value} -> {String.to_atom(key), value} end)
@@ -458,27 +984,137 @@ defmodule FitnessTracker.Schemas.Set do
   end
 
   def to_json(%__MODULE__{} = set) do
-    %{
-      reps: set.reps,
-      weight: set.weight
-    }
+    Map.take(set, [:reps, :weight, :rpe, :completed_at, :notes])
   end
 
   def from_json(json) when is_map(json) do
     %__MODULE__{
       reps: json["reps"],
-      weight: json["weight"]
+      weight: json["weight"],
+      rpe: json["rpe"],
+      completed_at: json["completed_at"],
+      notes: json["notes"]
     }
   end
 end
-# lib/fitness_tracker/schemas/workout.ex
 defmodule FitnessTracker.Schemas.Workout do
+  use FitnessTracker.Schemas.BaseLog,
+    log_type: "workout_log",
+    name_field: "workout_name",
+    date_field: "date_worked_out"
+
   alias FitnessTracker.Schemas.{Exercise, Set}
   @derive Jason.Encoder
-  defstruct [:exercises, :workout_name, :length_of_workout, :date_worked_out]
+  defstruct [
+    :workout_name,
+    :exercises,
+    :length_of_workout,
+    :date_worked_out,
+    # New: "planned", "in_progress", "completed"
+    :status,
+    # New: When workout started
+    :start_time,
+    # New: When workout ended
+    :end_time,
+    # New: Index of current exercise
+    :current_exercise,
+    # New: Index of current set
+    :current_set,
+    # New: When current rest period ends
+    :rest_timer_end,
+    # New: Total weight × reps
+    :total_volume,
+    # New: Target volume goal
+    :target_volume,
+    # New: Average RPE across all sets
+    :average_rpe,
+    # New: Target RPE range
+    :target_rpe,
+    # New: Workout notes
+    :notes,
+    # New: If saved as template
+    :template_name
+  ]
 
-  def new(attrs) do
-    {:ok, struct(__MODULE__, attrs)}
+  def new(attrs), do: {:ok, struct(__MODULE__, attrs)}
+
+  def create(username, attrs) do
+    with {:ok, workout_params} <- extract_workout_params(attrs),
+         {:ok, exercises} <- parse_exercises(workout_params),
+         {:ok, workout} <- build_workout(workout_params, exercises),
+         :ok <- validate_unique_workout(username, workout_params),
+         {:ok, _} <- save_item(username, workout) do
+      {:ok, workout}
+    end
+  end
+
+  # New function to start a workout
+  def start_workout(username, workout_name) do
+    with {:ok, workout} <- get_template(username, workout_name),
+         {:ok, active_workout} <- initialize_active_workout(workout),
+         :ok <- save_active_workout(username, active_workout) do
+      {:ok, active_workout}
+    end
+  end
+
+  # New function to get active workout
+  def get_active_workout(username) do
+    case get_profile(username) do
+      {:ok, %{"active_workout" => nil}} -> {:error, :no_active_workout}
+      {:ok, %{"active_workout" => workout}} -> {:ok, from_json(workout)}
+      error -> error
+    end
+  end
+
+  # New function to complete a set
+  def complete_set(username, %{reps: reps, weight: weight, rpe: rpe}) do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, updated_workout} <- record_set(workout, reps, weight, rpe),
+         :ok <- save_active_workout(username, updated_workout) do
+      {:ok, updated_workout}
+    end
+  end
+
+  # New function to end workout
+  def end_workout(username) do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, completed_workout} <- finalize_workout(workout),
+         {:ok, _} <- save_item(username, completed_workout),
+         :ok <- clear_active_workout(username) do
+      {:ok, completed_workout}
+    end
+  end
+
+  # Template management functions
+  def save_as_template(username, workout_name) do
+    with {:ok, workout} <- get(username, workout_name, Date.utc_today() |> Date.to_string()),
+         {:ok, template} <- create_template(workout),
+         :ok <- save_template(username, template) do
+      {:ok, template}
+    end
+  end
+
+  def get_template(username, template_name) do
+    with {:ok, profile} <- get_profile(username),
+         {:ok, template} <- find_template(profile, template_name) do
+      {:ok, template}
+    end
+  end
+
+  def get_templates(username) do
+    case get_profile(username) do
+      {:ok, profile} -> {:ok, profile["workout_templates"] || []}
+      error -> error
+    end
+  end
+
+  def update(username, workout_name, date, attrs) do
+    with {:ok, workout_params} <- extract_workout_params(attrs),
+         {:ok, exercises} <- parse_exercises(workout_params),
+         {:ok, updated_workout} <- build_workout(workout_params, exercises),
+         {:ok, profile} <- get_profile(username) do
+      update_existing_or_create(username, profile, workout_name, date, updated_workout, attrs)
+    end
   end
 
   def to_json(%__MODULE__{} = workout) do
@@ -490,115 +1126,6 @@ defmodule FitnessTracker.Schemas.Workout do
     }
   end
 
-  def create(username, attrs) do
-    with {:ok, workout_params} <- Map.fetch(attrs, "workout"),
-         true <- is_list(workout_params["exercises"]) || {:error, "exercises must be a list"},
-         exercises <- Enum.map(workout_params["exercises"], &parse_exercise/1),
-         false <- Enum.any?(exercises, &match?({:error, _}, &1)),
-         true <-
-           is_binary(workout_params["workout_name"]) || {:error, "workout_name is required"},
-         true <-
-           is_number(workout_params["length_of_workout"]) ||
-             {:error, "length_of_workout must be a number"},
-         true <-
-           is_binary(workout_params["date_worked_out"]) || {:error, "date_worked_out is required"},
-         {:ok, workout} <-
-           new(%{
-             exercises: exercises,
-             workout_name: workout_params["workout_name"],
-             length_of_workout: workout_params["length_of_workout"],
-             date_worked_out: workout_params["date_worked_out"]
-           }),
-         profile when not is_nil(profile) <-
-           Mongo.find_one(:mongo, "profiles", %{username: username}),
-         nil <- Enum.find(profile["workout_log"] || [], &matching_workout?(&1, workout_params)),
-         {:ok, _} <-
-           Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-             "$push": %{"workout_log" => to_json(workout)}
-           }) do
-      {:ok, workout}
-    else
-      {:error, message} -> {:error, message}
-      nil -> {:error, :profile_not_found}
-      _ -> {:error, :workout_exists}
-    end
-  end
-
-  def get_all(username) do
-    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
-      nil ->
-        {:error, :profile_not_found}
-
-      %{"workout_log" => workout_log} ->
-        {:ok, Enum.map(workout_log, &from_json/1)}
-
-      _ ->
-        {:error, :workout_log_not_found}
-    end
-  end
-
-  def get(username, workout_name, date) do
-    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
-      nil ->
-        {:error, :profile_not_found}
-
-      profile ->
-        case find_workout(profile["workout_log"], workout_name, date) do
-          nil -> {:error, :not_found}
-          workout -> {:ok, from_json(workout)}
-        end
-    end
-  end
-
-  def update(username, workout_name, date, attrs) do
-    with {:ok, workout_params} <- Map.fetch(attrs, "workout"),
-         exercises <- Enum.map(workout_params["exercises"], &parse_exercise/1),
-         {:ok, updated_workout} <-
-           new(%{
-             exercises: exercises,
-             workout_name: workout_params["workout_name"],
-             length_of_workout: workout_params["length_of_workout"],
-             date_worked_out: workout_params["date_worked_out"]
-           }),
-         profile when not is_nil(profile) <-
-           Mongo.find_one(:mongo, "profiles", %{username: username}),
-         true <- has_workout?(profile["workout_log"], workout_name, date) do
-      update_workout(username, workout_name, date, to_json(updated_workout))
-    else
-      false -> create(username, attrs)
-      nil -> {:error, :profile_not_found}
-      error -> error
-    end
-  end
-
-  def delete(username, workout_name, date) do
-    case Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-           "$pull": %{
-             workout_log: %{
-               workout_name: workout_name,
-               date_worked_out: date
-             }
-           }
-         }) do
-      {:ok, %{modified_count: 1}} -> :ok
-      {:ok, %{modified_count: 0}} -> {:error, :not_found}
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  def clear_log(username) do
-    case Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-           "$set": %{
-             workout_log: []
-           }
-         }) do
-      {:ok, %{modified_count: 1}} -> :ok
-      {:ok, %{modified_count: 0}} -> {:error, :profile_not_found}
-      {:error, error} -> {:error, error}
-    end
-  end
-
-  # ... helper functions ...
   def from_json(json) when is_map(json) do
     %__MODULE__{
       exercises: Enum.map(json["exercises"], &Exercise.from_json/1),
@@ -606,6 +1133,71 @@ defmodule FitnessTracker.Schemas.Workout do
       length_of_workout: json["length_of_workout"],
       date_worked_out: json["date_worked_out"]
     }
+  end
+
+  def update_set_rpe(username, rpe) when is_number(rpe) and rpe >= 1 and rpe <= 10 do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, updated_workout} <- record_rpe(workout, rpe),
+         :ok <- save_active_workout(username, updated_workout) do
+      {:ok, updated_workout}
+    end
+  end
+
+  defp record_rpe(workout, rpe) do
+    current_exercise = Enum.at(workout.exercises, workout.current_exercise)
+    current_set_index = workout.current_set
+
+    # Update the current set with the RPE
+    updated_sets =
+      List.update_at(current_exercise.sets, current_set_index, fn set ->
+        %{set | rpe: rpe}
+      end)
+
+    # Update the exercise with modified sets
+    updated_exercise = %{current_exercise | sets: updated_sets}
+
+    updated_exercises =
+      List.replace_at(workout.exercises, workout.current_exercise, updated_exercise)
+
+    # Recalculate average RPE
+    new_average_rpe = calculate_average_rpe(updated_exercises)
+
+    {:ok, %{workout | exercises: updated_exercises, average_rpe: new_average_rpe}}
+  end
+
+  defp calculate_average_rpe(exercises) do
+    completed_sets =
+      exercises
+      |> Enum.flat_map(& &1.sets)
+      |> Enum.filter(&(&1.completed_at and not is_nil(&1.rpe)))
+
+    case completed_sets do
+      [] ->
+        0
+
+      sets ->
+        total_rpe = Enum.reduce(sets, 0, fn set, acc -> acc + set.rpe end)
+        total_rpe / length(sets)
+    end
+  end
+
+  # Private functions specific to Workout
+  defp extract_workout_params(attrs) do
+    case Map.fetch(attrs, "workout") do
+      {:ok, params} -> {:ok, params}
+      :error -> {:error, "Missing workout parameters"}
+    end
+  end
+
+  defp parse_exercises(workout_params) do
+    with true <- is_list(workout_params["exercises"]) || {:error, "exercises must be a list"},
+         exercises <- Enum.map(workout_params["exercises"], &parse_exercise/1),
+         false <- Enum.any?(exercises, &match?({:error, _}, &1)) do
+      {:ok, exercises}
+    else
+      {:error, message} -> {:error, message}
+      true -> {:error, "Invalid exercise format"}
+    end
   end
 
   defp parse_exercise(exercise_params) do
@@ -620,20 +1212,173 @@ defmodule FitnessTracker.Schemas.Workout do
     end
   end
 
+  defp initialize_active_workout(workout) do
+    {:ok,
+     %{
+       workout
+       | status: "in_progress",
+         start_time: DateTime.utc_now(),
+         current_exercise: 0,
+         current_set: 0,
+         total_volume: 0,
+         average_rpe: 0
+     }}
+  end
+
+  defp record_set(workout, reps, weight, rpe) do
+    current_exercise = Enum.at(workout.exercises, workout.current_exercise)
+    new_volume = workout.total_volume + reps * weight
+    new_rpe_count = count_completed_sets(workout) + 1
+    new_average_rpe = (workout.average_rpe * (new_rpe_count - 1) + rpe) / new_rpe_count
+
+    # Update the current set
+    updated_set = %Set{
+      reps: reps,
+      weight: weight,
+      rpe: rpe,
+      completed_at: DateTime.utc_now()
+    }
+
+    # Update the exercise sets
+    updated_sets = List.replace_at(current_exercise.sets, workout.current_set, updated_set)
+    updated_exercise = %{current_exercise | sets: updated_sets}
+
+    updated_exercises =
+      List.replace_at(workout.exercises, workout.current_exercise, updated_exercise)
+
+    # Move to next set or exercise
+    {next_exercise, next_set} = get_next_set_indices(workout)
+
+    {:ok,
+     %{
+       workout
+       | exercises: updated_exercises,
+         current_exercise: next_exercise,
+         current_set: next_set,
+         total_volume: new_volume,
+         average_rpe: new_average_rpe,
+         rest_timer_end: DateTime.utc_now() |> DateTime.add(workout.rest_time || 90, :second)
+     }}
+  end
+
+  defp get_next_set_indices(workout) do
+    current_exercise = Enum.at(workout.exercises, workout.current_exercise)
+
+    if workout.current_set + 1 < length(current_exercise.sets) do
+      {workout.current_exercise, workout.current_set + 1}
+    else
+      if workout.current_exercise + 1 < length(workout.exercises) do
+        {workout.current_exercise + 1, 0}
+      else
+        # Workout complete
+        {workout.current_exercise, workout.current_set}
+      end
+    end
+  end
+
+  defp count_completed_sets(workout) do
+    workout.exercises
+    |> Enum.flat_map(& &1.sets)
+    |> Enum.count(& &1.completed_at)
+  end
+
+  defp finalize_workout(workout) do
+    {:ok, %{workout | status: "completed", end_time: DateTime.utc_now()}}
+  end
+
+  defp save_active_workout(username, workout) do
+    Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+      "$set": %{active_workout: to_json(workout)}
+    })
+  end
+
+  defp clear_active_workout(username) do
+    Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+      "$set": %{active_workout: nil}
+    })
+  end
+
+  defp create_template(workout) do
+    {:ok,
+     %{
+       workout
+       | template_name: workout.workout_name,
+         status: "template",
+         start_time: nil,
+         end_time: nil,
+         current_exercise: nil,
+         current_set: nil
+     }}
+  end
+
+  defp save_template(username, template) do
+    Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+      "$push": %{workout_templates: to_json(template)}
+    })
+  end
+
+  defp find_template(profile, template_name) do
+    case Enum.find(profile["workout_templates"] || [], &(&1["template_name"] == template_name)) do
+      nil -> {:error, :template_not_found}
+      template -> {:ok, from_json(template)}
+    end
+  end
+
+  # Enhanced validation for the new fields
+  defp build_workout(params, exercises) do
+    with true <- is_binary(params["workout_name"]) || {:error, "workout_name is required"},
+         true <-
+           is_number(params["length_of_workout"]) ||
+             {:error, "length_of_workout must be a number"},
+         true <- is_binary(params["date_worked_out"]) || {:error, "date_worked_out is required"},
+         true <- validate_optional_fields(params) do
+      new(%{
+        workout_name: params["workout_name"],
+        exercises: exercises,
+        length_of_workout: params["length_of_workout"],
+        date_worked_out: params["date_worked_out"],
+        status: params["status"] || "planned",
+        target_volume: params["target_volume"],
+        target_rpe: params["target_rpe"],
+        notes: params["notes"]
+      })
+    end
+  end
+
+  defp validate_optional_fields(params) do
+    valid_target_volume = params["target_volume"] == nil || is_number(params["target_volume"])
+    valid_target_rpe = params["target_rpe"] == nil || is_number(params["target_rpe"])
+
+    cond do
+      !valid_target_volume -> {:error, "target_volume must be a number"}
+      !valid_target_rpe -> {:error, "target_rpe must be a number"}
+      true -> true
+    end
+  end
+
+  defp validate_unique_workout(username, workout_params) do
+    case get_profile(username) do
+      {:ok, profile} ->
+        case Enum.find(profile["workout_log"] || [], &matching_workout?(&1, workout_params)) do
+          nil -> :ok
+          _ -> {:error, :workout_exists}
+        end
+
+      error ->
+        error
+    end
+  end
+
   defp matching_workout?(workout, workout_params) do
-    workout["workout_name"] == workout_params["workout_name"] &&
-      workout["date_worked_out"] == workout_params["date_worked_out"]
+    matches_criteria?(workout, workout_params["workout_name"], workout_params["date_worked_out"])
   end
 
-  defp find_workout(workout_log, workout_name, date) do
-    Enum.find(workout_log, fn workout ->
-      workout["workout_name"] == workout_name &&
-        workout["date_worked_out"] == date
-    end)
-  end
-
-  defp has_workout?(workout_log, workout_name, date) do
-    workout_log |> find_workout(workout_name, date) |> is_map()
+  defp update_existing_or_create(username, profile, workout_name, date, updated_workout, attrs) do
+    if profile["workout_log"] |> find_item(workout_name, date) |> is_map() do
+      update_workout(username, workout_name, date, to_json(updated_workout))
+    else
+      create(username, attrs)
+    end
   end
 
   defp update_workout(username, workout_name, date, updated_workout) do
@@ -656,4 +1401,140 @@ defmodule FitnessTracker.Schemas.Workout do
       }
     )
   end
+
+  # Add these functions to your Workout module:
+
+  # Stats & History
+  def get_workout_stats(username) do
+    case get_active_workout(username) do
+      {:ok, workout} ->
+        {:ok,
+         %{
+           total_volume: workout.total_volume,
+           target_volume: workout.target_volume,
+           sets_completed: count_completed_sets(workout),
+           total_sets: count_total_sets(workout),
+           average_rpe: workout.average_rpe,
+           current_exercise: workout.current_exercise,
+           current_set: workout.current_set
+         }}
+
+      error ->
+        error
+    end
+  end
+
+  def get_history(username) do
+    with {:ok, workouts} <- get_all(username) do
+      history =
+        workouts
+        |> Enum.filter(&(&1.status == "completed"))
+        |> Enum.map(fn workout ->
+          %{
+            name: workout.workout_name,
+            date: workout.date_worked_out,
+            duration: calculate_duration(workout),
+            volume: workout.total_volume,
+            exercises: summarize_exercises(workout.exercises)
+          }
+        end)
+
+      {:ok, history}
+    end
+  end
+
+  def update_workout_notes(username, notes) do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, updated_workout} <- update_notes(workout, notes),
+         :ok <- save_active_workout(username, updated_workout) do
+      {:ok, updated_workout}
+    end
+  end
+
+  def skip_exercise(username) do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, updated_workout} <- advance_to_next_exercise(workout),
+         :ok <- save_active_workout(username, updated_workout) do
+      {:ok, updated_workout}
+    end
+  end
+
+  def update_rest_timer(username, rest_time) do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, updated_workout} <- set_rest_timer(workout, rest_time),
+         :ok <- save_active_workout(username, updated_workout) do
+      {:ok, updated_workout}
+    end
+  end
+
+  def update_exercise_targets(username, targets) do
+    with {:ok, workout} <- get_active_workout(username),
+         {:ok, updated_workout} <- update_targets(workout, targets),
+         :ok <- save_active_workout(username, updated_workout) do
+      {:ok, updated_workout}
+    end
+  end
+
+  # Add these private helper functions:
+
+  defp count_total_sets(workout) do
+    Enum.reduce(workout.exercises, 0, fn exercise, acc ->
+      acc + length(exercise.sets)
+    end)
+  end
+
+  defp calculate_duration(%{start_time: start_time, end_time: end_time})
+       when not is_nil(start_time) and not is_nil(end_time) do
+    DateTime.diff(end_time, start_time, :second)
+  end
+
+  defp calculate_duration(_), do: nil
+
+  defp summarize_exercises(exercises) do
+    Enum.map(exercises, fn exercise ->
+      %{
+        name: exercise.exercise_name,
+        sets_completed: Enum.count(exercise.sets, & &1.completed_at),
+        total_sets: length(exercise.sets),
+        best_set: get_best_set(exercise.sets)
+      }
+    end)
+  end
+
+  defp get_best_set(sets) do
+    sets
+    |> Enum.filter(& &1.completed_at)
+    |> Enum.max_by(fn set -> set.weight * set.reps end, fn -> nil end)
+  end
+
+  defp update_notes(workout, notes) do
+    {:ok, %{workout | notes: notes}}
+  end
+
+  defp advance_to_next_exercise(workout) do
+    if workout.current_exercise + 1 < length(workout.exercises) do
+      {:ok, %{workout | current_exercise: workout.current_exercise + 1, current_set: 0}}
+    else
+      {:error, "No more exercises"}
+    end
+  end
+
+  defp set_rest_timer(workout, rest_time) when is_number(rest_time) and rest_time > 0 do
+    {:ok, %{workout | rest_timer_end: DateTime.utc_now() |> DateTime.add(rest_time, :second)}}
+  end
+
+  defp set_rest_timer(_, _), do: {:error, "Invalid rest time"}
+
+  defp update_targets(workout, %{target_weight: weight, target_reps: reps})
+       when is_number(weight) and is_number(reps) do
+    current_exercise = Enum.at(workout.exercises, workout.current_exercise)
+    updated_exercise = %{current_exercise | target_weight: weight, target_reps: reps}
+
+    updated_exercises =
+      List.replace_at(workout.exercises, workout.current_exercise, updated_exercise)
+
+    {:ok, %{workout | exercises: updated_exercises}}
+  end
+
+  defp update_targets(_, _), do: {:error, "Invalid targets"}
 end

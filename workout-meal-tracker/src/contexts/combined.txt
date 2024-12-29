@@ -1,0 +1,71 @@
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { useAuth } from "./AuthContext";
+import { api } from "../api";
+
+const NutritionContext = createContext(null);
+
+export const NutritionProvider = ({ children }) => {
+  const [goals, setGoals] = useState(null);
+  const [dailyStats, setDailyStats] = useState(null);
+  const [weeklyStats, setWeeklyStats] = useState([]);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchData = async () => {
+      try {
+        const [goalsData, dailyData] = await Promise.all([
+          api.getNutritionGoals(user.username),
+          api.getDailyNutrition(
+            user.username,
+            new Date().toISOString().split("T")[0]
+          ),
+        ]);
+
+        setGoals(goalsData);
+        setDailyStats(dailyData);
+
+        // Fetch last 7 days of data
+        const dates = [...Array(7)].map((_, i) => {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          return date.toISOString().split("T")[0];
+        });
+
+        const weeklyData = await Promise.all(
+          dates.map((date) => api.getDailyNutrition(user.username, date))
+        );
+
+        setWeeklyStats(weeklyData);
+      } catch (error) {
+        console.error("Failed to fetch nutrition data:", error);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const value = {
+    goals,
+    setGoals,
+    dailyStats,
+    setDailyStats,
+    weeklyStats,
+    setWeeklyStats,
+  };
+
+  return (
+    <NutritionContext.Provider value={value}>
+      {children}
+    </NutritionContext.Provider>
+  );
+};
+
+export const useNutrition = () => {
+  const context = useContext(NutritionContext);
+  if (!context) {
+    throw new Error("useNutrition must be used within a NutritionProvider");
+  }
+  return context;
+};

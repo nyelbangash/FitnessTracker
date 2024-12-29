@@ -1,0 +1,828 @@
+import React, { useState } from "react";
+import {
+  TextField,
+  Button,
+  Container,
+  Typography,
+  IconButton,
+  Alert,
+  Box,
+  Grid,
+} from "@mui/material";
+import { Delete as DeleteIcon, ArrowLeft } from "@mui/icons-material";
+import { addMeal } from "../api";
+import { useNavigate } from "react-router-dom";
+
+const AddMeal = () => {
+  const [mealName, setMealName] = useState("");
+  const [ingredients, setIngredients] = useState([{ name: "" }]);
+  const [date, setDate] = useState("");
+  const [calories, setCalories] = useState("");
+  const [protein, setProtein] = useState("");
+  const [carbs, setCarbs] = useState("");
+  const [fat, setFat] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // Validate required fields
+      if (!mealName || !date || !calories || !protein || !carbs || !fat) {
+        setError("Please fill in all required fields");
+        return;
+      }
+
+      // Validate ingredients
+      if (ingredients.some((ing) => !ing.name)) {
+        setError("Please complete all ingredient fields");
+        return;
+      }
+
+      const mealData = {
+        mealName,
+        ingredients,
+        date,
+        calories: parseInt(calories),
+        protein: parseFloat(protein),
+        carbs: parseFloat(carbs),
+        fat: parseFloat(fat),
+      };
+
+      await addMeal(mealData);
+
+      // Clear form and show success
+      setMealName("");
+      setIngredients([{ name: "" }]);
+      setDate("");
+      setCalories("");
+      setProtein("");
+      setCarbs("");
+      setFat("");
+      setSuccess("Meal added successfully!");
+      setError("");
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error) {
+      setError("Failed to add meal. Please try again.");
+    }
+  };
+
+  const handleIngredientChange = (index, value) => {
+    const updatedIngredients = [...ingredients];
+    updatedIngredients[index].name = value;
+    setIngredients(updatedIngredients);
+  };
+
+  const addIngredient = () => {
+    setIngredients([...ingredients, { name: "" }]);
+  };
+
+  const removeIngredient = (index) => {
+    if (ingredients.length > 1) {
+      const updatedIngredients = ingredients.filter((_, i) => i !== index);
+      setIngredients(updatedIngredients);
+    }
+  };
+
+  return (
+    <Container maxWidth="md">
+      <div className="mb-4 flex items-center">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 text-blue-500"
+        >
+          <ArrowLeft size={20} />
+          Back
+        </button>
+      </div>
+      <Typography variant="h4" align="center" gutterBottom>
+        Add Meal
+      </Typography>
+
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>
+          {success}
+        </Alert>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              label="Meal Name"
+              variant="outlined"
+              fullWidth
+              value={mealName}
+              onChange={(e) => setMealName(e.target.value)}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <TextField
+              label="Date"
+              type="date"
+              variant="outlined"
+              fullWidth
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Calories"
+              variant="outlined"
+              fullWidth
+              type="number"
+              value={calories}
+              onChange={(e) => setCalories(e.target.value)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Protein (g)"
+              variant="outlined"
+              fullWidth
+              type="number"
+              value={protein}
+              onChange={(e) => setProtein(e.target.value)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Carbs (g)"
+              variant="outlined"
+              fullWidth
+              type="number"
+              value={carbs}
+              onChange={(e) => setCarbs(e.target.value)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Fat (g)"
+              variant="outlined"
+              fullWidth
+              type="number"
+              value={fat}
+              onChange={(e) => setFat(e.target.value)}
+            />
+          </Grid>
+        </Grid>
+
+        <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
+          Ingredients
+        </Typography>
+
+        {ingredients.map((ingredient, index) => (
+          <Box
+            key={index}
+            sx={{
+              mb: 2,
+              p: 2,
+              border: 1,
+              borderColor: "grey.300",
+              borderRadius: 1,
+            }}
+          >
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={10}>
+                <TextField
+                  label="Ingredient Name"
+                  variant="outlined"
+                  fullWidth
+                  value={ingredient.name}
+                  onChange={(e) =>
+                    handleIngredientChange(index, e.target.value)
+                  }
+                />
+              </Grid>
+              <Grid item xs={2}>
+                <IconButton
+                  onClick={() => removeIngredient(index)}
+                  disabled={ingredients.length === 1}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Grid>
+            </Grid>
+          </Box>
+        ))}
+
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={addIngredient}
+          sx={{ mt: 2, mb: 4 }}
+        >
+          Add Ingredient
+        </Button>
+
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          fullWidth
+          size="large"
+        >
+          Save Meal
+        </Button>
+      </form>
+    </Container>
+  );
+};
+
+export default AddMeal;
+import React, { useState } from "react";
+import {
+  TextField,
+  Button,
+  Container,
+  Typography,
+  IconButton,
+  Alert,
+  Box,
+  Grid,
+} from "@mui/material";
+import { Delete as DeleteIcon } from "@mui/icons-material";
+import { addWorkout } from "../api";
+
+const AddWorkout = () => {
+  const [workoutName, setWorkoutName] = useState("");
+  const [exercises, setExercises] = useState([
+    { name: "", sets: "", reps: "", weight: "" },
+  ]);
+  const [date, setDate] = useState("");
+  const [duration, setDuration] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (!workoutName || !date || !duration) {
+        setError("Please fill in all required fields");
+        return;
+      }
+
+      // Validate exercises
+      if (
+        exercises.some((ex) => !ex.name || !ex.sets || !ex.reps || !ex.weight)
+      ) {
+        setError("Please complete all exercise fields");
+        return;
+      }
+
+      const workoutData = {
+        workoutName,
+        exercises: exercises.map((exercise) => ({
+          name: exercise.name,
+          sets: Array(parseInt(exercise.sets)).fill({
+            reps: parseInt(exercise.reps),
+            weight: parseFloat(exercise.weight),
+          }),
+        })),
+        date,
+        duration,
+      };
+
+      await addWorkout(workoutData);
+
+      // Clear form and show success
+      setWorkoutName("");
+      setExercises([{ name: "", sets: "", reps: "", weight: "" }]);
+      setDate("");
+      setDuration("");
+      setSuccess("Workout added successfully!");
+      setError("");
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(""), 3000);
+    } catch (error) {
+      setError("Failed to add workout. Please try again.");
+    }
+  };
+
+  const handleExerciseChange = (index, field, value) => {
+    const updatedExercises = [...exercises];
+    updatedExercises[index][field] = value;
+    setExercises(updatedExercises);
+  };
+
+  const addExercise = () => {
+    setExercises([...exercises, { name: "", sets: "", reps: "", weight: "" }]);
+  };
+
+  const removeExercise = (index) => {
+    if (exercises.length > 1) {
+      const updatedExercises = exercises.filter((_, i) => i !== index);
+      setExercises(updatedExercises);
+    }
+  };
+
+  return (
+    <Container maxWidth="md">
+      <Typography variant="h4" align="center" gutterBottom>
+        Add Workout
+      </Typography>
+
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>
+          {success}
+        </Alert>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              label="Workout Name"
+              variant="outlined"
+              fullWidth
+              value={workoutName}
+              onChange={(e) => setWorkoutName(e.target.value)}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Date"
+              type="date"
+              variant="outlined"
+              fullWidth
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Duration (minutes)"
+              variant="outlined"
+              fullWidth
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+            />
+          </Grid>
+        </Grid>
+
+        <Typography variant="h6" sx={{ mt: 4, mb: 2 }}>
+          Exercises
+        </Typography>
+
+        {exercises.map((exercise, index) => (
+          <Box
+            key={index}
+            sx={{
+              mb: 2,
+              p: 2,
+              border: 1,
+              borderColor: "grey.300",
+              borderRadius: 1,
+            }}
+          >
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  label="Exercise Name"
+                  variant="outlined"
+                  fullWidth
+                  value={exercise.name}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "name", e.target.value)
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={2}>
+                <TextField
+                  label="Sets"
+                  variant="outlined"
+                  fullWidth
+                  type="number"
+                  value={exercise.sets}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "sets", e.target.value)
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={2}>
+                <TextField
+                  label="Reps"
+                  variant="outlined"
+                  fullWidth
+                  type="number"
+                  value={exercise.reps}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "reps", e.target.value)
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={2}>
+                <TextField
+                  label="Weight (kg)"
+                  variant="outlined"
+                  fullWidth
+                  type="number"
+                  value={exercise.weight}
+                  onChange={(e) =>
+                    handleExerciseChange(index, "weight", e.target.value)
+                  }
+                />
+              </Grid>
+              <Grid item xs={12} sm={2}>
+                <IconButton
+                  onClick={() => removeExercise(index)}
+                  disabled={exercises.length === 1}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </Grid>
+            </Grid>
+          </Box>
+        ))}
+
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={addExercise}
+          sx={{ mt: 2, mb: 4 }}
+        >
+          Add Exercise
+        </Button>
+
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          fullWidth
+          size="large"
+        >
+          Save Workout
+        </Button>
+      </form>
+    </Container>
+  );
+};
+
+export default AddWorkout;
+import React, { useState } from "react";
+import { TextField, Button, Container, Typography, Alert } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { login } from "../api";
+
+const LoginPage = ({ setIsAuthenticated }) => {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await login(username, password);
+      if (response.success) {
+        setIsAuthenticated(true);
+        navigate("/");
+      }
+    } catch (error) {
+      setError("Invalid username or password");
+    }
+  };
+
+  return (
+    <Container maxWidth="xs">
+      <Typography variant="h4" align="center" gutterBottom>
+        Login
+      </Typography>
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      <form onSubmit={handleSubmit}>
+        <TextField
+          label="Username"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
+        <TextField
+          label="Password"
+          variant="outlined"
+          type="password"
+          fullWidth
+          margin="normal"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ mt: 2 }}
+        >
+          Login
+        </Button>
+      </form>
+    </Container>
+  );
+};
+
+export default LoginPage;
+import React, { useEffect, useState } from "react";
+import {
+  Typography,
+  List,
+  Container,
+  Paper,
+  Alert,
+  Box,
+  Divider,
+  Chip,
+  Grid,
+} from "@mui/material";
+import { getMeals } from "../api";
+
+const MealLog = () => {
+  const [meals, setMeals] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMeals = async () => {
+      try {
+        const mealsData = await getMeals();
+        setMeals(mealsData);
+      } catch (error) {
+        setError("Failed to load meals. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMeals();
+  }, []);
+
+  if (loading) {
+    return (
+      <Container maxWidth="md">
+        <Typography>Loading meals...</Typography>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="md">
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="md">
+      <Typography variant="h4" align="center" gutterBottom>
+        Meal Log
+      </Typography>
+
+      {meals.length === 0 ? (
+        <Alert severity="info">No meals recorded yet.</Alert>
+      ) : (
+        <List>
+          {meals.map((meal, index) => (
+            <Paper key={index} elevation={2} sx={{ mb: 2, p: 2 }}>
+              <Grid container spacing={2}>
+                <Grid xs={12}>
+                  <Typography variant="h6">{meal.meal_name}</Typography>
+                  <Typography color="text.secondary" gutterBottom>
+                    Date: {meal.date_eaten}
+                  </Typography>
+                </Grid>
+
+                <Grid xs={12} sm={6}>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Nutritional Information
+                    </Typography>
+                    <Typography>Calories: {meal.calories}</Typography>
+                    <Typography>Protein: {meal.protein}g</Typography>
+                    <Typography>Carbs: {meal.carbs}g</Typography>
+                    <Typography>Fat: {meal.fat}g</Typography>
+                  </Box>
+                </Grid>
+
+                <Grid xs={12} sm={6}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Ingredients
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                    {meal.ingredients.map((ingredient, idx) => (
+                      <Chip
+                        key={idx}
+                        label={ingredient.name}
+                        size="small"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Box>
+                </Grid>
+              </Grid>
+              {index < meals.length - 1 && <Divider sx={{ mt: 2 }} />}
+            </Paper>
+          ))}
+        </List>
+      )}
+    </Container>
+  );
+};
+
+export default MealLog;
+import React from "react";
+import { Container, Typography, Button, Paper, Grid } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+
+const ProfilePage = ({ handleLogout }) => {
+  const navigate = useNavigate();
+  const username = localStorage.getItem("username");
+
+  return (
+    <Container maxWidth="sm" className="mt-8">
+      <Paper className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <Typography variant="h4">Profile</Typography>
+          <Button
+            variant="outlined"
+            color="primary"
+            onClick={() => navigate("/")}
+          >
+            Back
+          </Button>
+        </div>
+
+        {/* User Information */}
+        <Grid container spacing={2} className="mb-6">
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" color="textSecondary">
+              Username
+            </Typography>
+            <Typography variant="h6">{username}</Typography>
+          </Grid>
+          {/* Add more user information fields here */}
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" color="textSecondary">
+              Weight Goal
+            </Typography>
+            <Typography variant="h6">Gain Weight</Typography>
+          </Grid>
+          <Grid item xs={12}>
+            <Typography variant="subtitle1" color="textSecondary">
+              Daily Calorie Goal
+            </Typography>
+            <Typography variant="h6">2500 kcal</Typography>
+          </Grid>
+        </Grid>
+
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <Button variant="contained" color="primary" fullWidth>
+            Edit Profile
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            fullWidth
+            onClick={handleLogout}
+          >
+            Logout
+          </Button>
+        </div>
+      </Paper>
+    </Container>
+  );
+};
+
+export default ProfilePage;
+import React, { useEffect, useState } from "react";
+import {
+  Typography,
+  List,
+  Container,
+  Paper,
+  Alert,
+  Box,
+  Divider,
+  Grid,
+} from "@mui/material";
+import { getWorkouts } from "../api";
+
+const WorkoutLog = () => {
+  const [workouts, setWorkouts] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchWorkouts = async () => {
+      try {
+        const workoutsData = await getWorkouts();
+        setWorkouts(workoutsData);
+      } catch (error) {
+        setError("Failed to load workouts. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWorkouts();
+  }, []);
+
+  if (loading) {
+    return (
+      <Container maxWidth="md">
+        <Typography>Loading workouts...</Typography>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container maxWidth="md">
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="md">
+      <Typography variant="h4" align="center" gutterBottom>
+        Workout Log
+      </Typography>
+
+      {workouts.length === 0 ? (
+        <Alert severity="info">No workouts recorded yet.</Alert>
+      ) : (
+        <List>
+          {workouts.map((workout, index) => (
+            <Paper key={index} elevation={2} sx={{ mb: 2, p: 2 }}>
+              <Grid container spacing={2}>
+                <Grid xs={12}>
+                  <Typography variant="h6">{workout.workout_name}</Typography>
+                  <Typography color="text.secondary" gutterBottom>
+                    Date: {workout.date_worked_out} | Duration:{" "}
+                    {workout.length_of_workout} minutes
+                  </Typography>
+                </Grid>
+
+                <Grid xs={12}>
+                  <Typography variant="subtitle1" sx={{ mt: 1 }}>
+                    Exercises:
+                  </Typography>
+                  {workout.exercises.map((exercise, idx) => (
+                    <Box key={idx} sx={{ ml: 2, my: 1 }}>
+                      <Typography>{exercise.exercise_name}</Typography>
+                      {exercise.sets.map((set, setIdx) => (
+                        <Typography
+                          key={setIdx}
+                          color="text.secondary"
+                          sx={{ ml: 2 }}
+                        >
+                          Set {setIdx + 1}: {set.reps} reps @ {set.weight}kg
+                        </Typography>
+                      ))}
+                    </Box>
+                  ))}
+                </Grid>
+              </Grid>
+              {index < workouts.length - 1 && <Divider sx={{ mt: 2 }} />}
+            </Paper>
+          ))}
+        </List>
+      )}
+    </Container>
+  );
+};
+
+export default WorkoutLog;

@@ -25,7 +25,6 @@ const AddWorkout = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Validate required fields
       if (!workoutName || !date || !duration) {
         setError("Please fill in all required fields");
         return;
@@ -43,12 +42,10 @@ const AddWorkout = () => {
         workoutName,
         exercises: exercises.map((exercise) => ({
           name: exercise.name,
-          sets: [
-            {
-              reps: parseInt(exercise.reps),
-              weight: parseFloat(exercise.weight),
-            },
-          ],
+          sets: Array(parseInt(exercise.sets)).fill({
+            reps: parseInt(exercise.reps),
+            weight: parseFloat(exercise.weight),
+          }),
         })),
         date,
         duration,
