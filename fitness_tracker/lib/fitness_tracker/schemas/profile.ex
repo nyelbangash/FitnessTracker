@@ -37,42 +37,64 @@ defmodule FitnessTracker.Schemas.Profile do
   # ----------------------
 
   def new(attrs) do
-    attrs = Enum.map(attrs, fn {k, v} -> {String.to_atom(k), v} end) |> Enum.into(%{})
-    with {:ok, valid_attrs} <- validate_profile(attrs) do
-      {:ok,
-       struct(
-         __MODULE__,
-         Map.merge(attrs, %{
-           date_account_created: DateTime.utc_now(),
-           nutrition_goals: default_nutrition_goals(),
-           workout_templates: [],
-           meal_templates: [],
-           favorite_meals: [],
-           recurring_meals: [],
-           quick_access_meals: [],
-           active_workout: nil,
-           workout_log: [],
-           meal_log: []
-         })
-       )}
+    attrs =
+      Map.new(attrs, fn
+        {key, value} when is_binary(key) -> {String.to_atom(key), value}
+        {key, value} when is_atom(key) -> {key, value}
+      end)
+
+    case validate_profile(attrs) do
+      {:ok, valid_attrs} ->
+        {:ok,
+         struct(
+           __MODULE__,
+           Map.merge(valid_attrs, %{
+             date_account_created: DateTime.utc_now(),
+             nutrition_goals: default_nutrition_goals(),
+             workout_templates: [],
+             meal_templates: [],
+             favorite_meals: [],
+             recurring_meals: [],
+             quick_access_meals: [],
+             active_workout: nil,
+             workout_log: [],
+             meal_log: []
+           })
+         )}
+
+      error ->
+        error
     end
   end
 
   def create(attrs) do
+    IO.inspect(attrs, label: "Received attributes")
+
     case new(attrs) do
       {:ok, profile} ->
+        IO.inspect(profile, label: "Created profile struct")
+
         case Mongo.find_one(:mongo, "profiles", %{username: profile.username}) do
           nil ->
+            IO.inspect("Inserting new profile")
+
             case Mongo.insert_one(:mongo, "profiles", to_json(profile)) do
-              {:ok, _} -> {:ok, profile}
-              {:error, error} -> {:error, error}
+              {:ok, result} ->
+                IO.inspect(result, label: "Insertion result")
+                {:ok, profile}
+
+              {:error, error} ->
+                IO.inspect(error, label: "Insertion error")
+                {:error, error}
             end
 
           _ ->
+            IO.inspect("Username already exists")
             {:error, :username_exists}
         end
 
       {:error, message} ->
+        IO.inspect(message, label: "Error creating profile struct")
         {:error, message}
     end
   end
@@ -97,15 +119,25 @@ defmodule FitnessTracker.Schemas.Profile do
   end
 
   def update(username, attrs) do
-    with {:ok, profile} <- new(attrs),
-         profile_json when not is_nil(profile_json) <-
-           Mongo.find_one(:mongo, "profiles", %{username: username}),
-         {:ok, _} <-
-           Mongo.update_one(:mongo, "profiles", %{username: username}, %{"$set": to_json(profile)}) do
-      {:ok, profile}
-    else
-      nil -> {:error, :not_found}
-      {:error, message} -> {:error, message}
+    case Mongo.find_one(:mongo, "profiles", %{username: username}) do
+      nil ->
+        {:error, :not_found}
+
+      existing_profile ->
+        # Convert the MongoDB document to a Profile struct
+        existing_struct = from_json(existing_profile)
+
+        # Convert incoming attributes and merge them
+        attrs_with_atoms = Map.new(attrs, fn {k, v} -> {String.to_atom(k), v} end)
+        updated_struct = Map.merge(existing_struct, attrs_with_atoms)
+
+        # Convert back to JSON for MongoDB
+        updated_json = to_json(updated_struct)
+
+        case Mongo.update_one(:mongo, "profiles", %{username: username}, %{"$set": updated_json}) do
+          {:ok, _} -> {:ok, updated_struct}
+          {:error, error} -> {:error, error}
+        end
     end
   end
 
@@ -151,16 +183,38 @@ defmodule FitnessTracker.Schemas.Profile do
     end
   end
 
-  def update_nutrition_goals(username, goals) do
-    with true <- validate_nutrition_goals(goals),
-         {:ok, _} <-
-           Mongo.update_one(:mongo, "profiles", %{username: username}, %{
-             "$set": %{nutrition_goals: goals}
-           }) do
-      {:ok, goals}
-    else
-      false -> {:error, "Invalid nutrition goals"}
-      error -> error
+  def update_nutrition_goals(username, new_goals) do
+    # Fetch the profile
+    case get_by_username(username) do
+      {:ok, profile} ->
+        existing_goals = profile.nutrition_goals || default_nutrition_goals()
+
+        # Merge existing goals with new ones
+        updated_goals = Map.merge(existing_goals, new_goals)
+
+        # Validate the updated goals
+        case validate_nutrition_goals(updated_goals) do
+          true ->
+            # Persist the updated goals
+            result =
+              Mongo.update_one(:mongo, "profiles", %{username: username}, %{
+                "$set": %{nutrition_goals: updated_goals}
+              })
+
+            case result do
+              {:ok, _} ->
+                {:ok, updated_goals}
+
+              {:error, error} ->
+                nil
+            end
+
+          false ->
+            {:error, "Invalid nutrition goals"}
+        end
+
+      {:error, :not_found} ->
+        {:error, "Profile not found"}
     end
   end
 
@@ -199,7 +253,7 @@ defmodule FitnessTracker.Schemas.Profile do
   end
 
   def update_profile_settings(username, settings) do
-    with {:ok, profile} <- get_by_username(username),
+    with {:ok, _profile} <- get_by_username(username),
          {:ok, updated_profile} <- validate_settings(settings),
          {:ok, _} <-
            Mongo.update_one(:mongo, "profiles", %{username: username}, %{"$set": updated_profile}) do
@@ -304,10 +358,10 @@ defmodule FitnessTracker.Schemas.Profile do
 
   defp validate_nutrition_goals(goals) do
     with true <- is_map(goals),
-         true <- is_number(goals.calories) and goals.calories > 0,
-         true <- is_number(goals.protein) and goals.protein > 0,
-         true <- is_number(goals.carbs) and goals.carbs > 0,
-         true <- is_number(goals.fat) and goals.fat > 0 do
+         true <- is_number(goals["calories"]),
+         true <- is_number(goals["protein"]),
+         true <- is_number(goals["carbs"]),
+         true <- is_number(goals["fat"]) do
       true
     else
       _ -> false
@@ -323,7 +377,7 @@ defmodule FitnessTracker.Schemas.Profile do
     end
   end
 
-  defp validate_optional_measurements(%{height: height, weight: weight} = settings)
+  defp validate_optional_measurements(%{height: height, weight: weight} = _settings)
        when is_number(height) and height > 0 and
               is_number(weight) and weight > 0 do
     true

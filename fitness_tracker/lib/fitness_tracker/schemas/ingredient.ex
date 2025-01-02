@@ -23,6 +23,9 @@ defmodule FitnessTracker.Schemas.Ingredient do
     {:ok, struct(__MODULE__, attrs)}
   end
 
+  # Add this clause
+  def to_json({:ok, ingredient}), do: to_json(ingredient)
+
   def to_json(%__MODULE__{} = ingredient) do
     Map.take(ingredient, [:name, :amount, :unit, :calories, :protein, :carbs, :fat, :is_favorite])
   end

@@ -71,11 +71,31 @@ defmodule FitnessTracker.Schemas.BaseLog do
       end
 
       defp matches_criteria?(item, name, date) do
-        item[@name_field] == name && item[@date_field] == date
+        name_field = @name_field
+        date_field = @date_field
+
+        IO.inspect({@log_type, name_field, date_field}, label: "Checking with fields")
+        IO.inspect({item[name_field], item[date_field]}, label: "Found values")
+        IO.inspect({name, date}, label: "Looking for")
+
+        item[name_field] == name && item[date_field] == date
       end
 
       defp find_item(log, name, date) do
-        Enum.find(log, &matches_criteria?(&1, name, date))
+        IO.inspect(@log_type, label: "Log type")
+        IO.inspect(log, label: "Full log")
+        IO.inspect({name, date}, label: "Looking for")
+        IO.inspect(@name_field, label: "Name field")
+        IO.inspect(@date_field, label: "Date field")
+
+        found =
+          Enum.find(log || [], fn item ->
+            IO.inspect(item, label: "Checking item")
+            matches_criteria?(item, name, date)
+          end)
+
+        IO.inspect(found, label: "Found")
+        found
       end
 
       defp remove_item(username, name, date) do
@@ -157,6 +177,7 @@ defmodule FitnessTracker.Schemas.BaseLog do
                      clear_log: 1,
                      save_template: 3,
                      get_template: 2,
+                     find_template: 2,
                      delete_template: 2
     end
   end

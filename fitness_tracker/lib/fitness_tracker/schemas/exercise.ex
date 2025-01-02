@@ -3,24 +3,26 @@ defmodule FitnessTracker.Schemas.Exercise do
   @derive Jason.Encoder
   defstruct [
     :exercise_name,
-    :sets,
-    # New: Target rep range
     :target_reps,
-    # New: Target weight
     :target_weight,
-    # New: Rest time between sets
     :rest_time,
-    # New: Target RPE
     :rpe_target,
-    # New: Form notes, etc.
     :notes,
-    # New: Weight from last session
     :previous_weight,
-    # New: PR for this exercise
     :personal_record,
-    # New: Number of sets completed
-    :completed_sets
+    :completed_sets,
+    sets: []
   ]
+
+  defimpl Enumerable do
+    def count(_), do: {:error, __MODULE__}
+    def member?(_, _), do: {:error, __MODULE__}
+
+    def reduce(%{sets: sets}, acc, fun) when is_list(sets),
+      do: Enumerable.List.reduce(sets, acc, fun)
+
+    def slice(_), do: {:error, __MODULE__}
+  end
 
   def new(attrs) do
     with {:ok, valid_attrs} <- validate_exercise(attrs) do
@@ -28,10 +30,11 @@ defmodule FitnessTracker.Schemas.Exercise do
     end
   end
 
+  # In Exercise module
   def to_json(%__MODULE__{} = exercise) do
     %{
       exercise_name: exercise.exercise_name,
-      sets: Enum.map(exercise.sets, &Set.to_json/1),
+      sets: Enum.map(exercise.sets || [], &Set.to_json/1),
       target_reps: exercise.target_reps,
       target_weight: exercise.target_weight,
       rest_time: exercise.rest_time,

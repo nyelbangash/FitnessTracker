@@ -51,9 +51,10 @@ defmodule FitnessTracker.Schemas.Meal do
     end
   end
 
+  # In Meal.ex
   def get_templates(username) do
     case get_profile(username) do
-      {:ok, profile} -> {:ok, profile.meal_templates || []}
+      {:ok, profile} -> {:ok, profile["meal_templates"] || []}
       error -> error
     end
   end
@@ -153,12 +154,12 @@ defmodule FitnessTracker.Schemas.Meal do
   defp build_meal(params, ingredients) do
     with true <- is_binary(params["name"]) || {:error, "name is required"},
          true <- is_binary(params["meal_type"]) || {:error, "meal_type is required"},
-         true <- is_binary(params["time_eaten"]) || {:error, "time_eaten is required"},
+         # Make time_eaten optional for templates
+         true <- !params["time_eaten"] || is_binary(params["time_eaten"]),
          true <- is_number(params["calories"]) || {:error, "calories must be a number"},
          true <- is_number(params["protein"]) || {:error, "protein must be a number"},
          true <- is_number(params["carbs"]) || {:error, "carbs must be a number"},
-         true <- is_number(params["fat"]) || {:error, "fat must be a number"},
-         true <- is_binary(params["date"]) || {:error, "date is required"} do
+         true <- is_number(params["fat"]) || {:error, "fat must be a number"} do
       new(%{
         name: params["name"],
         date: params["date"],

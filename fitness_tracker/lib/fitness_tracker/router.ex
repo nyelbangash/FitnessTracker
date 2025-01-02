@@ -2,10 +2,14 @@ alias FitnessTracker.Schemas.Profile
 
 defmodule FitnessTracker.Router do
   use Plug.Router
+  # Add this line
+  require Protocol
   alias FitnessTracker.Schemas.{Profile, Workout, Meal}
   require Logger
 
-  plug(CORSPlug, origin: ["http://localhost:3001"])
+  Protocol.derive(Jason.Encoder, Mongo.UpdateResult, only: [:acknowledged])
+
+  plug(CORSPlug, origin: ["http://localhost:4001"])
   plug(:match)
 
   plug(Plug.Parsers,
@@ -15,6 +19,15 @@ defmodule FitnessTracker.Router do
   )
 
   plug(:dispatch)
+
+  # Add this with your other workout endpoints
+  get "/ft/profile/:username/workout/:workout_name/:date/summary" do
+    case Workout.get_workout_summary(username, workout_name, date) do
+      {:ok, summary} -> send_json_response(conn, 200, summary)
+      {:error, :not_found} -> send_json_response(conn, 404, %{message: "Workout not found"})
+      {:error, message} -> send_json_response(conn, 400, %{message: message})
+    end
+  end
 
   post "/ft/profile" do
     case Profile.create(conn.body_params) do
@@ -93,10 +106,7 @@ defmodule FitnessTracker.Router do
       {:error, :profile_not_found} ->
         send_json_response(conn, 404, %{message: "Profile not found"})
 
-      {:error, :workout_exists} ->
-        send_json_response(conn, 409, %{message: "Workout already exists for this date"})
-
-      {:error, message} ->
+      {:error, message} when is_binary(message) ->
         send_json_response(conn, 400, %{message: message})
     end
   end
@@ -111,6 +121,90 @@ defmodule FitnessTracker.Router do
 
       {:error, :workout_log_not_found} ->
         send_json_response(conn, 500, %{message: "Error retrieving workout log"})
+    end
+  end
+
+  post "/ft/profile/:username/workout/end" do
+    case Workout.end_workout(username) do
+      {:ok, workout} ->
+        send_resp(
+          conn,
+          200,
+          Jason.encode!(%{
+            message: "Workout completed successfully",
+            workout: workout
+          })
+        )
+
+      _ ->
+        send_resp(conn, 404, Jason.encode!(%{message: "No active workout found"}))
+    end
+  end
+
+  get "/ft/profile/:username/workout/active/stats" do
+    case Workout.get_workout_stats(username) do
+      {:ok, stats} ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(200, Jason.encode!(stats))
+
+      error ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(404, Jason.encode!(%{message: "No active workout found"}))
+    end
+  end
+
+  put "/ft/profile/:username/workout/active/rest" do
+    rest_time = Map.get(conn.body_params, "rest_time")
+
+    case rest_time do
+      time when is_number(time) and time > 0 ->
+        case Workout.update_rest_timer(username, time) do
+          {:ok, workout} ->
+            send_json_response(conn, 200, %{workout: workout})
+
+          _ ->
+            send_json_response(conn, 400, %{message: "Failed to update rest timer"})
+        end
+
+      time when is_binary(time) ->
+        case Integer.parse(time) do
+          {num, ""} when num > 0 ->
+            case Workout.update_rest_timer(username, num) do
+              {:ok, workout} ->
+                send_json_response(conn, 200, %{workout: workout})
+
+              _ ->
+                send_json_response(conn, 400, %{message: "Failed to update rest timer"})
+            end
+
+          _ ->
+            send_json_response(conn, 400, %{message: "Invalid rest_time parameter"})
+        end
+
+      _ ->
+        send_json_response(conn, 400, %{message: "Invalid rest_time parameter"})
+    end
+  end
+
+  put "/ft/profile/:username/workout/active/notes" do
+    with %{"notes" => notes} <- conn.body_params,
+         {:ok, workout} <- Workout.update_workout_notes(username, notes) do
+      conn
+      |> put_resp_content_type("application/json")
+      |> send_resp(
+        200,
+        Jason.encode!(%{
+          message: "Notes updated successfully",
+          workout: workout
+        })
+      )
+    else
+      error ->
+        conn
+        |> put_resp_content_type("application/json")
+        |> send_resp(400, Jason.encode!(%{message: "Invalid notes parameter"}))
     end
   end
 
@@ -241,17 +335,16 @@ defmodule FitnessTracker.Router do
     end
   end
 
-  put "/ft/profile/:username/workout/active/rest" do
-    case Workout.update_rest_timer(username, conn.body_params["rest_time"]) do
-      {:ok, workout} -> send_json_response(conn, 200, %{workout: workout})
-      {:error, message} -> send_json_response(conn, 400, %{message: message})
-    end
-  end
-
   post "/ft/profile/:username/workout/active/skip" do
     case Workout.skip_exercise(username) do
-      {:ok, workout} -> send_json_response(conn, 200, %{workout: workout})
-      {:error, message} -> send_json_response(conn, 400, %{message: message})
+      {:ok, workout} ->
+        send_json_response(conn, 200, %{message: "Exercise skipped", workout: workout})
+
+      {:error, :no_active_workout} ->
+        send_json_response(conn, 404, %{message: "No active workout found"})
+
+      {:error, message} ->
+        send_json_response(conn, 400, %{message: message})
     end
   end
 
@@ -262,39 +355,11 @@ defmodule FitnessTracker.Router do
     end
   end
 
-  put "/ft/profile/:username/workout/active/notes" do
-    case Workout.update_workout_notes(username, conn.body_params["notes"]) do
-      {:ok, _} -> send_json_response(conn, 200, %{message: "Notes updated successfully"})
-      {:error, message} -> send_json_response(conn, 400, %{message: message})
-    end
-  end
-
-  post "/ft/profile/:username/workout/end" do
-    case Workout.end_workout(username) do
-      {:ok, completed_workout} ->
-        send_json_response(conn, 200, %{
-          message: "Workout completed successfully",
-          workout: completed_workout
-        })
-
-      {:error, message} ->
-        send_json_response(conn, 400, %{message: message})
-    end
-  end
-
   # Stats & History
   get "/ft/profile/:username/workout/history" do
     case Workout.get_history(username) do
       {:ok, history} -> send_json_response(conn, 200, %{history: history})
       {:error, message} -> send_json_response(conn, 404, %{message: message})
-    end
-  end
-
-  # New routes needed based on mockups
-  get "/ft/profile/:username/workout/active/stats" do
-    case Workout.get_workout_stats(username) do
-      {:ok, stats} -> send_json_response(conn, 200, stats)
-      {:error, message} -> send_json_response(conn, 400, %{message: message})
     end
   end
 
@@ -503,6 +568,18 @@ defmodule FitnessTracker.Router do
   # ----------------------
   # Helper Functions
   # ----------------------
+
+  defp parse_rest_time(%{"rest_time" => time}) when is_binary(time) do
+    case Integer.parse(time) do
+      {num, ""} when num > 0 -> {:ok, num}
+      _ -> :error
+    end
+  end
+
+  defp parse_rest_time(%{"rest_time" => time}) when is_number(time) and time > 0, do: {:ok, time}
+  defp parse_rest_time(_), do: :error
+
+  # Update send_json_response function:
   defp send_json_response(conn, status, body) do
     conn
     |> put_resp_content_type("application/json")
