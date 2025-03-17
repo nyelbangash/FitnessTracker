@@ -15,7 +15,7 @@ export const LoginPage = () => {
     e.preventDefault();
     try {
       await login(username, password);
-      navigate("/profile");
+      navigate("/");
     } catch (error) {
       setError("Invalid username or password");
     }

@@ -1,6 +1,6 @@
 // App.jsx
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NutritionProvider } from "./contexts/NutritionContext";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -10,6 +10,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { HomePage } from "./pages/HomePage";
 
 // Workout Pages
 import { WorkoutPreview } from "./components/workout/WorkoutPreview";
@@ -58,7 +59,7 @@ export const App = () => {
               <Route path="/profile" element={<ProfilePage />} />
 
               {/* Redirect root to workouts */}
-              <Route path="/" element={<Navigate to="/workouts" replace />} />
+              <Route path="/" element={<HomePage />} />
             </Route>
           </Routes>
         </NutritionProvider>
