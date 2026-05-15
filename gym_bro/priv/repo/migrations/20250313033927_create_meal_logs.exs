@@ -3,7 +3,7 @@ defmodule GymBro.Repo.Migrations.CreateMealLogs do
 
   def change do
     create table(:meal_logs) do
-      add :date, :date
+      add :date, :date, null: false
       add :notes, :text
 
       timestamps(type: :utc_datetime)

@@ -5,7 +5,7 @@ defmodule GymBro.WorkoutLog do
   schema "workout_logs" do
     field :notes, :string
 
-    belongs_to :profile, GymBro.Profile
+    belongs_to :user, GymBro.Accounts.User
     has_many :workouts, GymBro.Workout
 
     timestamps(type: :utc_datetime)
@@ -14,9 +14,9 @@ defmodule GymBro.WorkoutLog do
   @doc false
   def changeset(workout_log, attrs) do
     workout_log
-    |> cast(attrs, [:notes, :profile_id])
-    |> validate_required([:profile_id])
-    |> foreign_key_constraint(:profile_id)
+    |> cast(attrs, [:notes, :user_id])
+    |> validate_required([:user_id])
+    |> foreign_key_constraint(:user_id)
     |> cast_assoc(:workouts)
   end
 end

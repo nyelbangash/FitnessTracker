@@ -7,7 +7,7 @@ defmodule GymBro.MealLog do
     field :date, :date
     field :notes, :string
 
-    belongs_to :profile, GymBro.Profile
+    belongs_to :user, GymBro.Accounts.User
     has_many :meals, Meal
 
     timestamps(type: :utc_datetime)
@@ -16,10 +16,10 @@ defmodule GymBro.MealLog do
   @doc false
   def changeset(meal_log, attrs) do
     meal_log
-    |> cast(attrs, [:date, :notes])
-    |> validate_required([:date, :notes])
-    |> unique_constraint(:profile_id)
-    |> foreign_key_constraint(:profile_id)
+    |> cast(attrs, [:date, :notes, :user_id])
+    |> validate_required([:date, :user_id])
+    |> foreign_key_constraint(:user_id)
+    |> unique_constraint([:user_id, :date])
     |> cast_assoc(:meals)
   end
 end

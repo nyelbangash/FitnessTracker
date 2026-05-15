@@ -18,8 +18,10 @@ defmodule GymBro.Set do
   def changeset(set, attrs) do
     set
     |> cast(attrs, [:reps, :weight, :rpe, :completed_at, :notes, :exercise_id])
-    |> validate_required([:reps, :weight, :rpe, :completed_at, :notes])
+    |> validate_required([:reps, :weight, :exercise_id])
     |> validate_number(:rpe, greater_than: 0, less_than_or_equal_to: 10)
+    |> validate_number(:reps, greater_than_or_equal_to: 0)
+    |> validate_number(:weight, greater_than_or_equal_to: 0)
     |> foreign_key_constraint(:exercise_id)
   end
 end

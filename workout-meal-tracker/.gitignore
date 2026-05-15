@@ -21,3 +21,7 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local env (set REACT_APP_API_URL in Vercel for prod)
+.env
+.env.local

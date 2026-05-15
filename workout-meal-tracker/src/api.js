@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:4001/ft";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:4000/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -10,296 +10,351 @@ const api = axios.create({
   },
 });
 
-const getUsername = () => localStorage.getItem("username");
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-export const login = async ({ username, password }) => {
-  try {
-    const response = await api.post("/login", {
-      credentials: { username, password },
-    });
-
-    console.log("Login response data:", response.data); // Log the response data
-
-    if (response.data.success) {
-      return { profile: response.data.profile }; // Adjust if needed to match the response format
-    } else {
-      throw new Error("Login failed");
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
     }
-  } catch (error) {
-    console.error("Error during login:", error);
-    throw error; // Rethrow to be caught by the AuthContext login function
+    return Promise.reject(error);
+  }
+);
+
+// Auth
+
+export const login = async ({ email, password, username }) => {
+  // Accept legacy { username } for backwards-compat with the LoginPage,
+  // but the backend authenticates by email now.
+  const credentials = { email: email ?? username, password };
+  const { data } = await api.post("/login", { credentials });
+  if (data.token) localStorage.setItem("token", data.token);
+  return { token: data.token, profile: data.user };
+};
+
+export const logout = async () => {
+  try {
+    await api.delete("/logout");
+  } catch (e) {
+    // ignore
+  } finally {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   }
 };
 
 export const createProfile = async (profileData) => {
-  try {
-    const response = await api.post("/profile", {
-      first_name: profileData.firstName,
-      last_name: profileData.lastName,
-      username: profileData.username,
+  const payload = {
+    user: {
+      email: profileData.email ?? profileData.username,
       password: profileData.password,
-      date_of_birth: profileData.dateOfBirth,
-      height: parseFloat(profileData.height),
-      weight: parseFloat(profileData.weight),
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Create profile error:", error);
-    throw new Error("Failed to create profile");
-  }
+      first_name: profileData.firstName ?? profileData.first_name ?? "",
+      last_name: profileData.lastName ?? profileData.last_name ?? "",
+      height_cm: profileData.height ? parseInt(profileData.height, 10) : null,
+      weight_kg: profileData.weight ? parseFloat(profileData.weight) : null,
+      dob: profileData.dateOfBirth ?? profileData.dob ?? null,
+    },
+  };
+  const { data } = await api.post("/users", payload);
+  if (data.token) localStorage.setItem("token", data.token);
+  return data;
 };
 
+// Username helper kept for backwards-compat; returns whatever's in storage so
+// page-level code that displays `user.username` doesn't break.
+export const getUsernameFromUser = (user) => {
+  if (!user) return null;
+  return user.email || user.username || user.user_name || user.name || null;
+};
+
+// Workouts
+
 export const getWorkouts = async () => {
-  try {
-    const username = getUsername();
-    const response = await api.get(`/profile/${username}/workout`);
-    return response.data.workouts;
-  } catch (error) {
-    console.error("Fetch workouts error:", error);
-    throw new Error("Failed to fetch workouts");
-  }
+  const { data } = await api.get("/workouts");
+  return data.workouts;
 };
 
 export const addWorkout = async (workoutData) => {
-  try {
-    const username = getUsername();
-    validateWorkoutData(workoutData);
-
-    const formattedExercises = formatExercises(workoutData.exercises);
-
-    const response = await api.post(`/profile/${username}/workout`, {
-      workout: {
-        workout_name: workoutData.workoutName,
-        exercises: formattedExercises,
-        length_of_workout: parseInt(workoutData.duration) || 0,
-        date_worked_out: workoutData.date,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Add workout error:", error);
-    throw new Error(error.message || "Failed to add workout");
-  }
+  // Gym Bro doesn't expose a "create-completed-workout" endpoint — workouts
+  // are always created via start_workout from a template. This is left in
+  // for compatibility but isn't expected to be used by the new flow.
+  throw new Error(
+    "Direct workout creation is not supported. Start a workout from a template."
+  );
 };
 
-export const updateWorkout = async (workoutName, date, workoutData) => {
-  try {
-    const username = getUsername();
-    const response = await api.put(
-      `/profile/${username}/workout/${workoutName}/${date}`,
-      {
-        workout: {
-          workout_name: workoutData.workoutName,
-          exercises: formatExercises(workoutData.exercises),
-          length_of_workout: parseInt(workoutData.duration),
-          date_worked_out: workoutData.date,
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Update workout error:", error);
-    throw new Error("Failed to update workout");
-  }
+export const updateWorkout = async () => {
+  throw new Error("Workout editing after completion is not supported yet.");
 };
 
-export const getActiveWorkout = async (username) => {
-  try {
-    const response = await api.get(`/profile/${username}/workout/active`);
-    return response.data;
-  } catch (error) {
-    console.error("Fetch active workout error:", error);
-    throw new Error("Failed to fetch active workout");
-  }
+export const getActiveWorkout = async () => {
+  const { data } = await api.get("/workouts/active");
+  return data.workout;
 };
 
-export const completeSet = async (username, setData) => {
-  try {
-    const response = await api.post(
-      `/profile/${username}/workout/active/set`,
-      setData
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Complete set error:", error);
-    throw new Error("Failed to complete set");
-  }
+export const startWorkout = async (_username, templateName) => {
+  const { data } = await api.post("/workouts/active/start", {
+    workout_name: templateName,
+  });
+  return data.workout;
 };
+
+export const completeSet = async (_username, setData) => {
+  const { data } = await api.post("/workouts/active/set", setData);
+  return data.workout;
+};
+
+export const updateSetRPE = async (_username, setData) => {
+  const { data } = await api.put("/workouts/active/set/rpe", setData);
+  return data.workout;
+};
+
+export const updateExerciseTargets = async (_username, targetData) => {
+  const { data } = await api.put(
+    "/workouts/active/exercise/targets",
+    targetData
+  );
+  return data.workout;
+};
+
+export const skipExercise = async () => {
+  const { data } = await api.post("/workouts/active/skip");
+  return data.workout;
+};
+
+export const updateRestTimer = async (_username, restTime) => {
+  const { data } = await api.put("/workouts/active/rest", {
+    rest_time: restTime,
+  });
+  return data.workout;
+};
+
+export const updateWorkoutNotes = async (_username, notes) => {
+  const { data } = await api.put("/workouts/active/notes", { notes });
+  return data.workout;
+};
+
+export const endWorkout = async () => {
+  const { data } = await api.post("/workouts/active/end");
+  return data.workout;
+};
+
+export const getWorkoutHistory = async () => {
+  const { data } = await api.get("/workouts/history");
+  return data.history;
+};
+
+export const getWorkoutSummary = async (_username, workoutName, date) => {
+  const { data } = await api.get(
+    `/workouts/${encodeURIComponent(workoutName)}/${date}/summary`
+  );
+  return data.summary;
+};
+
+// Workout templates
+
+export const getWorkoutTemplates = async () => {
+  const { data } = await api.get("/workouts/templates");
+  return data.templates;
+};
+
+export const saveWorkoutAsTemplate = async (_username, workoutName) => {
+  const { data } = await api.post("/workouts/templates/from-workout", {
+    workout_name: workoutName,
+  });
+  return data.template;
+};
+
+export const saveWorkoutTemplate = async (_username, templateName, templateData) => {
+  const { data } = await api.put(
+    `/workouts/templates/${encodeURIComponent(templateName)}`,
+    { template: templateData }
+  );
+  return data.template;
+};
+
+export const createWorkoutTemplate = async (templateData) => {
+  const { data } = await api.post("/workouts/templates", {
+    template: templateData,
+  });
+  return data.template;
+};
+
+export const deleteWorkoutTemplate = async (_username, templateName) => {
+  await api.delete(`/workouts/templates/${encodeURIComponent(templateName)}`);
+};
+
+// Meals
 
 export const getMeals = async () => {
-  try {
-    const username = getUsername();
-    const response = await api.get(`/profile/${username}/meal`);
-    return response.data.meals;
-  } catch (error) {
-    console.error("Fetch meals error:", error);
-    throw new Error("Failed to fetch meals");
-  }
+  const { data } = await api.get("/meals");
+  return data.meals;
 };
 
 export const addMeal = async (mealData) => {
-  try {
-    const username = getUsername();
-    const response = await api.post(`/profile/${username}/meal`, {
-      meal: {
-        ...mealData,
-        calories: parseInt(mealData.calories),
-        protein: parseFloat(mealData.protein),
-        carbs: parseFloat(mealData.carbs),
-        fat: parseFloat(mealData.fat),
-        ingredients: mealData.ingredients.map((ing) => ({ name: ing.name })),
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Add meal error:", error);
-    throw new Error("Failed to add meal");
-  }
+  return createMeal(null, mealData);
+};
+
+export const createMeal = async (_username, mealData) => {
+  const payload = {
+    meal: {
+      name: mealData.name,
+      date: mealData.date,
+      time_eaten: mealData.time_eaten ?? mealData.timeEaten ?? null,
+      meal_type: mealData.meal_type ?? mealData.mealType,
+      calories: mealData.calories != null ? parseInt(mealData.calories, 10) : 0,
+      protein: mealData.protein != null ? parseFloat(mealData.protein) : 0,
+      carbs: mealData.carbs != null ? parseFloat(mealData.carbs) : 0,
+      fat: mealData.fat != null ? parseFloat(mealData.fat) : 0,
+      ingredients: (mealData.ingredients ?? []).map((ing) =>
+        typeof ing === "string" ? { name: ing } : ing
+      ),
+      notes: mealData.notes ?? null,
+    },
+  };
+  const { data } = await api.post("/meals", payload);
+  return data.meal;
 };
 
 export const updateMeal = async (mealName, date, mealData) => {
-  try {
-    const username = getUsername();
-    const response = await api.put(
-      `/profile/${username}/meal/${mealName}/${date}`,
-      {
-        meal: {
-          ...mealData,
-          calories: parseInt(mealData.calories),
-          protein: parseFloat(mealData.protein),
-          carbs: parseFloat(mealData.carbs),
-          fat: parseFloat(mealData.fat),
-          ingredients: mealData.ingredients.map((ing) => ({ name: ing.name })),
-        },
-      }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Update meal error:", error);
-    throw new Error("Failed to update meal");
-  }
+  const payload = {
+    meal: {
+      ...mealData,
+      calories: mealData.calories != null ? parseInt(mealData.calories, 10) : undefined,
+      protein: mealData.protein != null ? parseFloat(mealData.protein) : undefined,
+      carbs: mealData.carbs != null ? parseFloat(mealData.carbs) : undefined,
+      fat: mealData.fat != null ? parseFloat(mealData.fat) : undefined,
+      ingredients: (mealData.ingredients ?? []).map((ing) =>
+        typeof ing === "string" ? { name: ing } : ing
+      ),
+    },
+  };
+  const { data } = await api.put(
+    `/meals/${encodeURIComponent(mealName)}/${date}`,
+    payload
+  );
+  return data.meal;
 };
 
-export const getDailyNutrition = async (username, date) => {
-  try {
-    const response = await api.get(
-      `/profile/${username}/nutrition/daily/${date}`
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Fetch daily nutrition error:", error);
-    throw new Error("Failed to fetch daily nutrition");
-  }
+export const deleteMeal = async (_username, mealName, date) => {
+  await api.delete(`/meals/${encodeURIComponent(mealName)}/${date}`);
 };
 
-export const getNutritionGoals = async (username) => {
-  try {
-    const response = await api.get(`/profile/${username}/nutrition/goals`);
-    return response.data;
-  } catch (error) {
-    console.error("Fetch nutrition goals error:", error);
-    throw new Error("Failed to fetch nutrition goals");
-  }
+export const getFavoriteMeals = async () => {
+  const { data } = await api.get("/meals/favorites");
+  return data.meals;
 };
 
-// Helper functions
-
-const validateWorkoutData = (workoutData) => {
-  if (
-    !workoutData ||
-    !workoutData.exercises ||
-    !Array.isArray(workoutData.exercises)
-  ) {
-    throw new Error("Invalid workout data structure");
-  }
+export const toggleMealFavorite = async (_username, mealName, date) => {
+  const { data } = await api.post(
+    `/meals/${encodeURIComponent(mealName)}/${date}/favorite`
+  );
+  return data.meal;
 };
 
-const formatExercises = (exercises) => {
-  return exercises.map((ex) => {
-    if (!ex || !ex.name || !Array.isArray(ex.sets)) {
-      throw new Error("Invalid exercise data");
-    }
+export const getQuickAccessMeals = async () => {
+  const { data } = await api.get("/meals/quick-access");
+  return data.meals;
+};
 
-    ex.sets.forEach((set, index) => {
-      if (!set.reps || !set.weight) {
-        throw new Error(`Invalid data for set ${index + 1}`);
-      }
-    });
+export const toggleMealQuickAccess = async (_username, mealName, date) => {
+  const { data } = await api.post(
+    `/meals/${encodeURIComponent(mealName)}/${date}/quick-access`
+  );
+  return data.meal;
+};
 
-    return {
-      exercise_name: ex.name,
-      sets: ex.sets.map((set) => ({
-        reps: parseInt(set.reps) || 0,
-        weight: parseFloat(set.weight) || 0,
-      })),
-    };
+export const getRecurringMeals = async () => {
+  const { data } = await api.get("/meals/recurring");
+  return data.meals;
+};
+
+export const setMealRecurring = async (_username, mealName, date, schedule) => {
+  const { data } = await api.post(
+    `/meals/${encodeURIComponent(mealName)}/${date}/recurring`,
+    { schedule }
+  );
+  return data.meal;
+};
+
+export const getMealTemplates = async () => {
+  const { data } = await api.get("/meals/templates");
+  return data.templates;
+};
+
+export const analyzeMealPhoto = async (file) => {
+  const form = new FormData();
+  form.append("image", file);
+  const { data } = await api.post("/meals/analyze", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    timeout: 45000,
   });
-};
-// Get favorite meals
-export const getFavoriteMeals = async (username) => {
-  try {
-    const response = await api.get(`/profile/${username}/meal/favorites`);
-    return response.data.meals;
-  } catch (error) {
-    console.error("Fetch favorite meals error:", error);
-    throw new Error("Failed to fetch favorite meals");
-  }
+  return data.analysis;
 };
 
-// Get quick access meals
-export const getQuickAccessMeals = async (username) => {
-  try {
-    const response = await api.get(`/profile/${username}/meal/quick-access`);
-    return response.data.meals;
-  } catch (error) {
-    console.error("Fetch quick access meals error:", error);
-    throw new Error("Failed to fetch quick access meals");
-  }
+export const refineMealAnalysis = async (analysisId, message, history) => {
+  const { data } = await api.post("/meals/analyze/refine", {
+    analysis_id: analysisId,
+    message,
+    history,
+  }, { timeout: 45000 });
+  return data.analysis;
 };
 
-// Get recurring meals
-export const getRecurringMeals = async (username) => {
-  try {
-    const response = await api.get(`/profile/${username}/meal/recurring`);
-    return response.data.meals;
-  } catch (error) {
-    console.error("Fetch recurring meals error:", error);
-    throw new Error("Failed to fetch recurring meals");
-  }
+export const createMealTemplate = async (_username, mealData) => {
+  const { data } = await api.post("/meals/templates", { template: mealData });
+  return data.template;
 };
 
-// Create a new meal entry
-export const createMeal = async (username, mealData) => {
-  try {
-    const response = await api.post(`/profile/${username}/meal`, mealData);
-    return response.data;
-  } catch (error) {
-    console.error("Create meal error:", error);
-    throw new Error("Failed to create meal");
-  }
+// Profile + nutrition
+
+export const updateProfile = async (_username, profileData) => {
+  const payload = {
+    user: {
+      first_name: profileData.first_name ?? profileData.firstName,
+      last_name: profileData.last_name ?? profileData.lastName,
+      height_cm:
+        profileData.height_cm ??
+        (profileData.height ? parseInt(profileData.height, 10) : undefined),
+      weight_kg:
+        profileData.weight_kg ??
+        (profileData.weight ? parseFloat(profileData.weight) : undefined),
+      dob: profileData.dob ?? profileData.dateOfBirth,
+      theme: profileData.theme,
+    },
+  };
+  // Strip undefined keys so we don't accidentally clear server values.
+  Object.keys(payload.user).forEach(
+    (k) => payload.user[k] === undefined && delete payload.user[k]
+  );
+  const { data } = await api.put("/me", payload);
+  return data.user;
 };
 
-// End the active workout
-export const endWorkout = async (username) => {
-  try {
-    const response = await api.post(`/profile/${username}/workout/end`);
-    return response.data;
-  } catch (error) {
-    console.error("End workout error:", error);
-    throw new Error("Failed to end workout");
-  }
+export const getMe = async () => {
+  const { data } = await api.get("/me");
+  return data.user;
 };
 
-// Update workout notes
-export const updateWorkoutNotes = async (username, notes) => {
-  try {
-    const response = await api.put(
-      `/profile/${username}/workout/active/notes`,
-      { notes }
-    );
-    return response.data;
-  } catch (error) {
-    console.error("Update workout notes error:", error);
-    throw new Error("Failed to update workout notes");
-  }
+export const getNutritionGoals = async () => {
+  const { data } = await api.get("/nutrition/goals");
+  return data.goals;
+};
+
+export const updateNutritionGoals = async (_username, goalsData) => {
+  const { data } = await api.put("/nutrition/goals", { goals: goalsData });
+  return data.goals;
+};
+
+export const getDailyNutrition = async (_username, date) => {
+  const { data } = await api.get(`/nutrition/daily/${date}`);
+  return data;
 };

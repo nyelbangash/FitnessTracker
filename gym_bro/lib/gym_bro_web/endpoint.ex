@@ -49,16 +49,22 @@ defmodule GymBroWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
-  plug :introspect
+  plug CORSPlug, origin: &__MODULE__.cors_origins/0
   plug GymBroWeb.Router
 
-  def introspect(conn, _opts) do
-    IO.puts """
-    Verb: #{inspect(conn.method)}
-    Host: #{inspect(conn.host)}
-    Headers: #{inspect(conn.req_headers)}
-    """
+  # CORS allowed origins. Always includes localhost dev; in prod we also
+  # accept any origin listed in the CORS_ORIGIN env var (comma-separated)
+  # and any *.vercel.app origin (covers preview + production deploys).
+  def cors_origins do
+    base = [~r/^https?:\/\/localhost(:\d+)?$/, ~r/^https:\/\/[a-z0-9-]+\.vercel\.app$/]
 
-    conn
+    extra =
+      case System.get_env("CORS_ORIGIN") do
+        nil -> []
+        "" -> []
+        s -> s |> String.split(",") |> Enum.map(&String.trim/1) |> Enum.reject(&(&1 == ""))
+      end
+
+    base ++ extra
   end
 end

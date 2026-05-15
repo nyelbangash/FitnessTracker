@@ -7,8 +7,6 @@ defmodule GymBro.Repo.Migrations.CreateMealIngredients do
       add :ingredient_id, references(:ingredients, on_delete: :delete_all), primary_key: true
       add :amount, :float
       add :unit, :string
-
-      timestamps()
     end
 
     create index(:meal_ingredients, [:meal_id])

@@ -17,8 +17,12 @@ defmodule GymBro.Repo.Migrations.CreateMeals do
       add :notes, :text
       add :schedule, :string
 
+      add :meal_log_id, references(:meal_logs, on_delete: :delete_all)
 
       timestamps()
     end
+    
+    create index(:meals, [:meal_log_id])
+    create index(:meals, [:name])
   end
 end

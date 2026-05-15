@@ -1,11 +1,12 @@
-defmodule GymBro.Repo.Migrations.AddProfileIdToMealLogs do
+defmodule GymBro.Repo.Migrations.AddUserIdToMealLogs do
   use Ecto.Migration
 
   def change do
     alter table(:meal_logs) do
-      add :profile_id, references(:profiles, on_delete: :delete_all)
+      add :user_id, references(:users, on_delete: :delete_all), null: false
     end
 
-    create unique_index(:meal_logs, [:profile_id])
+    create index(:meal_logs, [:user_id])
+    create unique_index(:meal_logs, [:user_id, :date])
   end
 end

@@ -3,10 +3,9 @@ defmodule GymBro.Repo.Migrations.CreateWorkouts do
 
   def change do
     create table(:workouts) do
-      add :workout_name, :string
-      add :length_of_workout, :integer
-      add :date_worked_out, :date
-      add :status, :string
+      add :workout_name, :string, null: false
+      add :date_worked_out, :date, null: false
+      add :status, :string, null: false, default: "completed"
       add :start_time, :utc_datetime
       add :end_time, :utc_datetime
       add :current_exercise, :integer

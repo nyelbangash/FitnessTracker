@@ -4,9 +4,9 @@ defmodule GymBro.Meal do
 
   schema "meals" do
     field :name, :string
-    field :date, :date
     field :time_eaten, :time
     field :meal_type, :string
+    field :date, :date, virtual: true
     field :calories, :integer
     field :protein, :float
     field :carbs, :float
@@ -27,7 +27,9 @@ defmodule GymBro.Meal do
   @doc false
   def changeset(meal, attrs) do
     meal
-    |> cast(attrs, [:name, :date, :time_eaten, :meal_type, :calories, :protein, :carbs, :fat, :ingredients, :is_favorite, :is_recurring, :is_quick_access, :template_name, :notes, :schedule])
-    |> validate_required([:name, :date, :time_eaten, :meal_type, :calories, :protein, :carbs, :fat, :ingredients, :is_favorite, :is_recurring, :is_quick_access, :template_name, :notes, :schedule])
+    |> cast(attrs, [:name, :time_eaten, :meal_type, :calories, :protein, :carbs, :fat, :is_favorite, :is_recurring, :is_quick_access, :template_name, :notes, :schedule, :meal_log_id])
+    |> validate_required([:name, :meal_type])
+    |> validate_inclusion(:meal_type, ~w(breakfast lunch dinner snack))
+    |> foreign_key_constraint(:meal_log_id)
   end
 end

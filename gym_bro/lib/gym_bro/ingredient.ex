@@ -19,6 +19,6 @@ defmodule GymBro.Ingredient do
   def changeset(ingredient, attrs) do
     ingredient
     |> cast(attrs, [:name, :amount, :unit, :calories, :protein, :carbs, :fat, :is_favorite])
-    |> validate_required([:name, :amount, :unit, :calories, :protein, :carbs, :fat, :is_favorite])
+    |> validate_required([:name])
   end
 end

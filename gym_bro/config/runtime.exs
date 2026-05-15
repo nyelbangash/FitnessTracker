@@ -31,7 +31,12 @@ if config_env() == :prod do
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
   config :gym_bro, GymBro.Repo,
-    # ssl: true,
+    # Fly's Postgres uses TLS internally for connections from other apps in
+    # the same org. Local Docker-compose Postgres in dev does not — we only
+    # touch this in :prod. `verify_none` because Fly's intra-org cert isn't
+    # publicly chainable.
+    ssl: System.get_env("DATABASE_SSL", "true") == "true",
+    ssl_opts: [verify: :verify_none],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     socket_options: maybe_ipv6

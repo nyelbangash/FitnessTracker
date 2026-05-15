@@ -14,8 +14,8 @@ defmodule GymBro.Application do
       {Phoenix.PubSub, name: GymBro.PubSub},
       # Start the Finch HTTP client for sending emails
       {Finch, name: GymBro.Finch},
-      # Start a worker by calling: GymBro.Worker.start_link(arg)
-      # {GymBro.Worker, arg},
+      # In-memory cache of in-flight meal photo analyses (for refinement chat).
+      GymBro.Meals.AnalysisCache,
       # Start to serve requests, typically the last entry
       GymBroWeb.Endpoint
     ]
