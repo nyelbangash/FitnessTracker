@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Build the React app, sync to Capacitor, build the iOS .app, and install on
+# the chosen target (simulator by default, or a connected iPhone with --device).
+#
+# Usage:
+#   bin/deploy-ios              # build + install on the default simulator
+#   bin/deploy-ios --device     # build + install on a connected iPhone
+#   bin/deploy-ios --skip-web   # skip the npm build (faster if only iOS native code changed)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+# Default backend URL — your Mac's mDNS hostname so the URL survives DHCP changes.
+API_URL="${REACT_APP_API_URL:-http://Nyels-MacBook-Pro.local:4000/api}"
+BUNDLE_ID="com.nyelbangash.gymbro"
+SIM_ID="${SIM_ID:-0476A060-992D-4C34-9F83-E1DB234D2C0D}" # iPhone 17 Simulator
+SCHEME="App"
+PROJECT="ios/App/App.xcodeproj"
+
+target="simulator"
+skip_web=false
+for arg in "$@"; do
+  case "$arg" in
+    --device) target="device" ;;
+    --simulator) target="simulator" ;;
+    --skip-web) skip_web=true ;;
+    *) echo "unknown arg: $arg" >&2; exit 1 ;;
+  esac
+done
+
+if [ "$skip_web" = false ]; then
+  echo "==> [1/4] building React app (API_URL=$API_URL)"
+  REACT_APP_API_URL="$API_URL" npm run build --silent
+  echo "==> [2/4] syncing to Capacitor iOS"
+  npx cap sync ios >/dev/null
+else
+  echo "==> skipping React build + cap sync"
+fi
+
+if [ "$target" = "simulator" ]; then
+  echo "==> [3/4] building for iOS Simulator (no signing)"
+  xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+    -sdk iphonesimulator -derivedDataPath ios/App/build \
+    CODE_SIGNING_ALLOWED=NO build >/dev/null
+
+  APP="ios/App/build/Build/Products/Debug-iphonesimulator/App.app"
+  echo "==> [4/4] booting simulator + installing"
+  xcrun simctl boot "$SIM_ID" 2>/dev/null || true
+  open -a Simulator
+  xcrun simctl install "$SIM_ID" "$APP"
+  xcrun simctl launch "$SIM_ID" "$BUNDLE_ID" >/dev/null
+  echo "==> launched $BUNDLE_ID in simulator"
+else
+  echo "==> [3/4] looking for a connected iPhone"
+  DEVICE_LINE=$(xcrun devicectl list devices 2>/dev/null | grep -E "iPhone|iPad" | head -1 || true)
+  if [ -z "$DEVICE_LINE" ]; then
+    echo "no iPhone connected. plug in via USB, tap Trust on the phone, then re-run." >&2
+    exit 1
+  fi
+  DEVICE_ID=$(echo "$DEVICE_LINE" | awk '{ for (i=1;i<=NF;i++) if ($i ~ /^[A-F0-9-]{36}$/) { print $i; exit } }')
+  echo "    device: $DEVICE_ID"
+
+  echo "==> [4/4] building signed app + installing"
+  xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Debug \
+    -destination "id=$DEVICE_ID" \
+    -allowProvisioningUpdates \
+    -derivedDataPath ios/App/build \
+    build >/dev/null
+
+  APP="ios/App/build/Build/Products/Debug-iphoneos/App.app"
+  xcrun devicectl device install app --device "$DEVICE_ID" "$APP"
+  echo "==> installed on device. tap the Gym Bro icon on your iPhone."
+fi

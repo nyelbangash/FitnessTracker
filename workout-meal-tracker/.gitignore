@@ -25,3 +25,9 @@ yarn-error.log*
 # Local env (set REACT_APP_API_URL in Vercel for prod)
 .env
 .env.local
+
+# design-sync staging + build output
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/

@@ -1,0 +1,52 @@
+{
+  "pkg": "gym-bro-web",
+  "globalName": "GymBro",
+  "projectId": "3b43d424-f5ee-4332-b837-7f4171d6280f",
+  "shape": "package",
+  "srcDir": "src/ui",
+  "cssEntry": "build/static/css/main.de925d34.css",
+  "componentSrcMap": {
+    "Card": "src/ui/Card.jsx",
+    "CardHeader": "src/ui/Card.jsx",
+    "CardBody": "src/ui/Card.jsx",
+    "CardFooter": "src/ui/Card.jsx",
+    "Button": "src/ui/Button.jsx",
+    "Input": "src/ui/Input.jsx",
+    "Textarea": "src/ui/Input.jsx",
+    "NumberCell": "src/ui/NumberCell.jsx",
+    "Ring": "src/ui/Ring.jsx",
+    "Bar": "src/ui/Bar.jsx",
+    "Chip": "src/ui/Chip.jsx",
+    "Stat": "src/ui/Stat.jsx",
+    "RefineChat": null
+  },
+  "dtsPropsFor": {
+    "Card": "children?: React.ReactNode; raised?: boolean; className?: string",
+    "CardHeader": "title?: React.ReactNode; subtitle?: React.ReactNode; action?: React.ReactNode; className?: string",
+    "CardBody": "children?: React.ReactNode; className?: string",
+    "CardFooter": "children?: React.ReactNode; className?: string",
+    "Button": "children?: React.ReactNode; variant?: 'primary' | 'default' | 'ghost' | 'danger'; size?: 'sm' | 'md' | 'lg' | 'xl'; full?: boolean; className?: string; type?: 'button' | 'submit' | 'reset'; onClick?: (e: React.MouseEvent) => void; disabled?: boolean; title?: string",
+    "Input": "label?: string; hint?: string; error?: string; className?: string; type?: string; value?: string; placeholder?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean; autoComplete?: string; min?: string | number; max?: string | number; step?: string | number",
+    "Textarea": "label?: string; className?: string; rows?: number; value?: string; placeholder?: string; defaultValue?: string; onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; required?: boolean",
+    "NumberCell": "label?: string; value: number; onChange: (next: number) => void; step?: number; min?: number; max?: number; width?: string; suffix?: string",
+    "Ring": "value?: number; max?: number; size?: number; stroke?: number; label?: string; number?: number | string; color?: string; trackColor?: string",
+    "Bar": "value?: number; max?: number; height?: number; color?: string; trackColor?: string; overflowColor?: string",
+    "Chip": "children?: React.ReactNode; onClick?: () => void; tone?: 'default' | 'muted' | 'accent'; className?: string; title?: string",
+    "Stat": "label?: string; value: React.ReactNode; unit?: string; hint?: string; align?: 'left' | 'center'"
+  },
+  "previewArgs": {
+    "Bar": { "value": 65, "max": 100, "height": 6 },
+    "Ring": { "value": 350, "max": 500, "size": 80, "label": "PROTEIN", "number": 350 },
+    "Stat": { "label": "VOLUME", "value": "12,400", "unit": "kg", "hint": "this week" },
+    "NumberCell": { "label": "REPS", "value": 8, "width": "w-28" },
+    "Chip": { "tone": "default", "children": "chicken breast" },
+    "Card": { "raised": false, "children": "card content" },
+    "CardHeader": { "title": "Today's macros", "subtitle": "2 meals logged" },
+    "CardBody": { "children": "body content" },
+    "CardFooter": { "children": "footer content" },
+    "Button": { "variant": "primary", "size": "md", "children": "Log meal" },
+    "Input": { "label": "Email", "type": "email", "placeholder": "you@example.com" },
+    "Textarea": { "label": "Notes", "rows": 3, "placeholder": "Anything to add" }
+  },
+  "overrides": {}
+}
