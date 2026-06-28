@@ -32,4 +32,50 @@ defmodule GymBro.Meal do
     |> validate_inclusion(:meal_type, ~w(breakfast lunch dinner snack))
     |> foreign_key_constraint(:meal_log_id)
   end
+
+  # Meals are editable for 24h after they were eaten. After that we lock
+  # them so the daily log stays a faithful record of what was actually
+  # consumed. Toggles (favorite, quick-access, recurring) and deletes are
+  # NOT affected — only the macro/ingredient edit form.
+
+  @edit_window_seconds 24 * 60 * 60
+
+  @doc """
+  The UTC DateTime at which this meal becomes uneditable. Anchors on
+  `time_eaten` when set, otherwise on the start of the meal's date.
+  """
+  def editable_until(%__MODULE__{} = meal) do
+    case anchor_datetime(meal) do
+      nil -> nil
+      anchor -> DateTime.add(anchor, @edit_window_seconds, :second)
+    end
+  end
+
+  @doc """
+  True if `now` is within the editable window. `now` defaults to UTC now.
+  """
+  def editable?(meal, now \\ DateTime.utc_now())
+
+  def editable?(%__MODULE__{} = meal, %DateTime{} = now) do
+    case editable_until(meal) do
+      nil -> true
+      deadline -> DateTime.compare(now, deadline) != :gt
+    end
+  end
+
+  defp anchor_datetime(%__MODULE__{date: %Date{} = d, time_eaten: %Time{} = t}) do
+    case DateTime.new(d, t, "Etc/UTC") do
+      {:ok, dt} -> dt
+      _ -> nil
+    end
+  end
+
+  defp anchor_datetime(%__MODULE__{date: %Date{} = d}) do
+    case DateTime.new(d, ~T[00:00:00], "Etc/UTC") do
+      {:ok, dt} -> dt
+      _ -> nil
+    end
+  end
+
+  defp anchor_datetime(_), do: nil
 end

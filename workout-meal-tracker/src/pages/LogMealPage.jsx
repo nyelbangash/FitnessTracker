@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Plus, Trash2, ArrowLeft, Camera, AlertTriangle } from "lucide-react";
-import { Card, CardBody, CardHeader, Button, Input, Chip } from "../ui";
+import { Plus, Trash2, ArrowLeft, Camera, AlertTriangle, Sparkles, Lock } from "lucide-react";
+import { Card, CardBody, CardHeader, Button, Input, Textarea, Chip } from "../ui";
 import { RefineChat } from "../ui/RefineChat";
 import * as api from "../api";
 
@@ -32,7 +32,11 @@ export const LogMealPage = () => {
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingText, setAnalyzingText] = useState(false);
   const [analysis, setAnalysis] = useState(null);
+  const [description, setDescription] = useState("");
+  const [locked, setLocked] = useState(false);
+  const [editableUntil, setEditableUntil] = useState(null);
   const fileInputRef = useRef(null);
 
   // Load the existing meal when in edit mode.
@@ -61,6 +65,8 @@ export const LogMealPage = () => {
               unit: i.unit || "g",
             })),
           });
+          if (meal.editable === false) setLocked(true);
+          if (meal.editable_until) setEditableUntil(meal.editable_until);
         } else {
           setError("Meal not found");
         }
@@ -144,6 +150,26 @@ export const LogMealPage = () => {
     }
   };
 
+  const onAnalyzeDescription = async () => {
+    const text = description.trim();
+    if (!text || analyzingText) return;
+    setError(null);
+    setAnalyzingText(true);
+    try {
+      const result = await api.analyzeMealText(text);
+      applyAnalysisToForm(result);
+    } catch (err) {
+      const detail =
+        err?.response?.data?.error ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Could not analyze description";
+      setError(`Analysis failed: ${detail}`);
+    } finally {
+      setAnalyzingText(false);
+    }
+  };
+
   const populateFromMeal = (m) => {
     setForm((f) => ({
       ...f,
@@ -202,8 +228,31 @@ export const LogMealPage = () => {
         <button onClick={() => navigate("/eat")} className="text-muted hover:text-fg">
           <ArrowLeft size={16} />
         </button>
-        <h2 className="text-2xl">{isEdit ? "Edit meal" : "Log a meal"}</h2>
+        <h2 className="text-2xl">{isEdit ? (locked ? "Meal (locked)" : "Edit meal") : "Log a meal"}</h2>
       </div>
+
+      {locked && (
+        <Card>
+          <CardBody className="flex items-start gap-3">
+            <Lock size={16} className="mt-0.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+            <div className="text-sm">
+              <div>This meal is locked — the 24-hour edit window has passed.</div>
+              {editableUntil && (
+                <div className="text-xs text-muted mt-0.5">
+                  Was editable until{" "}
+                  {new Date(editableUntil).toLocaleString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    hour: "numeric",
+                    minute: "2-digit",
+                  })}
+                  .
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {!isEdit && (
       <Card>
@@ -288,6 +337,36 @@ export const LogMealPage = () => {
               Numbers below were estimated. Review portions before logging.
             </div>
           )}
+        </CardBody>
+      </Card>
+      )}
+
+      {!isEdit && (
+      <Card>
+        <CardHeader
+          title="From a description"
+          subtitle="just type what you ate"
+        />
+        <CardBody>
+          <Textarea
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="e.g. 4 eggs with olive oil, glass of OJ, pound of chicken breast, half a cup of instant rice, 6 toll house mini cookies"
+          />
+          <div className="flex items-center gap-3 mt-3">
+            <Button
+              variant="primary"
+              onClick={onAnalyzeDescription}
+              disabled={analyzingText || !description.trim()}
+            >
+              <Sparkles size={14} />
+              {analyzingText ? "Analyzing…" : "Analyze"}
+            </Button>
+            <span className="text-xs text-muted">
+              Estimates portions, looks up macros from USDA.
+            </span>
+          </div>
         </CardBody>
       </Card>
       )}
@@ -452,11 +531,15 @@ export const LogMealPage = () => {
       {error && <div className="text-sm text-bad">{error}</div>}
 
       <div className="flex gap-2">
-        <Button variant="primary" onClick={save} disabled={saving || loading}>
+        <Button
+          variant="primary"
+          onClick={save}
+          disabled={saving || loading || locked}
+        >
           {saving ? "Saving…" : isEdit ? "Save changes" : "Log meal"}
         </Button>
         <Button variant="ghost" onClick={() => navigate("/eat")}>
-          Cancel
+          {locked ? "Back" : "Cancel"}
         </Button>
       </div>
 

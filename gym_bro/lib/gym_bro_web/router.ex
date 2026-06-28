@@ -93,6 +93,7 @@ defmodule GymBroWeb.Router do
     post "/meals/:meal_name/:date/recurring", MealController, :set_recurring
 
     post "/meals/analyze/refine", MealController, :refine
+    post "/meals/analyze/text", MealController, :analyze_text
   end
 
   scope "/api", GymBroWeb.Api, as: :api_multipart do

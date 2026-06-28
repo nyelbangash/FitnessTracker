@@ -121,6 +121,39 @@ defmodule GymBroWeb.Api.MealController do
     |> json(%{error: "missing_image"})
   end
 
+  def analyze_text(conn, %{"description" => description}) when is_binary(description) do
+    case Meals.analyze_text(conn.assigns.current_user, description) do
+      {:ok, result} ->
+        json(conn, %{analysis: result})
+
+      {:error, :empty_description} ->
+        conn
+        |> put_status(:bad_request)
+        |> json(%{error: "empty_description"})
+
+      {:error, :missing_api_key} ->
+        conn
+        |> put_status(:service_unavailable)
+        |> json(%{error: "vision_unavailable", detail: "ANTHROPIC_API_KEY not configured"})
+
+      {:error, {:upstream, status, body}} ->
+        conn
+        |> put_status(:bad_gateway)
+        |> json(%{error: "vision_upstream", status: status, detail: inspect(body)})
+
+      {:error, reason} ->
+        conn
+        |> put_status(:bad_gateway)
+        |> json(%{error: "analysis_failed", detail: inspect(reason)})
+    end
+  end
+
+  def analyze_text(conn, _params) do
+    conn
+    |> put_status(:bad_request)
+    |> json(%{error: "missing_description"})
+  end
+
   def refine(conn, %{"analysis_id" => analysis_id, "message" => message} = params) do
     history =
       case params["history"] do
@@ -216,6 +249,8 @@ defmodule GymBroWeb.Api.MealController do
       template_name: meal.template_name,
       notes: meal.notes,
       schedule: meal.schedule,
+      editable: GymBro.Meal.editable?(meal),
+      editable_until: GymBro.Meal.editable_until(meal),
       ingredients: render_ingredients(meal.ingredients)
     }
   end

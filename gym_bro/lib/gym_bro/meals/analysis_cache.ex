@@ -17,20 +17,34 @@ defmodule GymBro.Meals.AnalysisCache do
   end
 
   @doc """
-  Stores an analysis under a fresh UUID. Returns the id.
-  Inputs: user_id, image bytes, media_type ("image/jpeg" etc), analysis map.
+  Stores a photo-based analysis under a fresh UUID. Returns the id.
   """
   def put(user_id, image_bytes, media_type, analysis) do
-    id = uuid()
-    expires_at = System.monotonic_time(:second) + @ttl_seconds
-
-    entry = %{
+    insert(%{
       user_id: user_id,
+      kind: :photo,
       image_bytes: image_bytes,
       media_type: media_type,
-      analysis: analysis,
-      expires_at: expires_at
-    }
+      analysis: analysis
+    })
+  end
+
+  @doc """
+  Stores a text-based analysis under a fresh UUID. Returns the id.
+  """
+  def put_text(user_id, description, analysis) do
+    insert(%{
+      user_id: user_id,
+      kind: :text,
+      description: description,
+      analysis: analysis
+    })
+  end
+
+  defp insert(base_entry) do
+    id = uuid()
+    expires_at = System.monotonic_time(:second) + @ttl_seconds
+    entry = Map.put(base_entry, :expires_at, expires_at)
 
     Agent.update(__MODULE__, fn map -> Map.put(map, id, entry) end)
     sweep_async()

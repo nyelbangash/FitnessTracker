@@ -117,11 +117,13 @@ export const EatTodayPage = () => {
                     </div>
                   </div>
                   <button
-                    title="Edit"
+                    title={m.editable === false ? "Locked — 24h edit window has passed" : "Edit"}
                     onClick={() =>
+                      m.editable !== false &&
                       navigate(`/eat/edit/${m.date}/${encodeURIComponent(m.name)}`)
                     }
-                    className="text-muted hover:text-fg p-2"
+                    disabled={m.editable === false}
+                    className={`p-2 ${m.editable === false ? "text-muted opacity-40 cursor-not-allowed" : "text-muted hover:text-fg"}`}
                   >
                     <Pencil size={16} />
                   </button>

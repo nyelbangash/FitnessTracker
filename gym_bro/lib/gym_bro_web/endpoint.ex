@@ -56,7 +56,15 @@ defmodule GymBroWeb.Endpoint do
   # accept any origin listed in the CORS_ORIGIN env var (comma-separated)
   # and any *.vercel.app origin (covers preview + production deploys).
   def cors_origins do
-    base = [~r/^https?:\/\/localhost(:\d+)?$/, ~r/^https:\/\/[a-z0-9-]+\.vercel\.app$/]
+    base = [
+      ~r/^https?:\/\/localhost(:\d+)?$/,
+      # Capacitor iOS WKWebView origin (bundled assets).
+      "capacitor://localhost",
+      # Capacitor Android scheme (in case we ever add Android).
+      ~r/^https?:\/\/[a-z0-9-]+\.local(:\d+)?$/,
+      # mDNS hostnames like Nyels-MacBook-Pro.local when iPhone connects over LAN.
+      ~r/^https:\/\/[a-z0-9-]+\.vercel\.app$/
+    ]
 
     extra =
       case System.get_env("CORS_ORIGIN") do

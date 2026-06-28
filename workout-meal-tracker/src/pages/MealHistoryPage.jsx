@@ -67,10 +67,20 @@ export const MealHistoryPage = () => {
                   <li key={m.id}>
                     <button
                       onClick={() =>
+                        m.editable !== false &&
                         navigate(`/eat/edit/${m.date}/${encodeURIComponent(m.name)}`)
                       }
-                      className="w-full text-sm flex justify-between items-baseline px-2 py-1 -mx-2 rounded hover:bg-surface-2 transition-colors text-left"
-                      title="Click to edit"
+                      disabled={m.editable === false}
+                      className={`w-full text-sm flex justify-between items-baseline px-2 py-1 -mx-2 rounded transition-colors text-left ${
+                        m.editable === false
+                          ? "cursor-default"
+                          : "hover:bg-surface-2"
+                      }`}
+                      title={
+                        m.editable === false
+                          ? "Locked — 24h edit window has passed"
+                          : "Click to edit"
+                      }
                     >
                       <span>
                         <span className="num text-xs text-muted mr-2">

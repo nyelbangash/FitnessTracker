@@ -300,6 +300,15 @@ export const analyzeMealPhoto = async (file) => {
   return data.analysis;
 };
 
+export const analyzeMealText = async (description) => {
+  const { data } = await api.post(
+    "/meals/analyze/text",
+    { description },
+    { timeout: 45000 }
+  );
+  return data.analysis;
+};
+
 export const refineMealAnalysis = async (analysisId, message, history) => {
   const { data } = await api.post("/meals/analyze/refine", {
     analysis_id: analysisId,

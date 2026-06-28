@@ -28,6 +28,8 @@ defmodule GymBroWeb.Api.FallbackController do
     do: send_error(conn, :unprocessable_entity, "no_current_exercise")
   def call(conn, {:error, :no_current_set}),
     do: send_error(conn, :unprocessable_entity, "no_current_set")
+  def call(conn, {:error, :locked}),
+    do: send_error(conn, :forbidden, "meal_locked")
   def call(conn, {:error, reason}) when is_atom(reason) do
     send_error(conn, :bad_request, Atom.to_string(reason))
   end

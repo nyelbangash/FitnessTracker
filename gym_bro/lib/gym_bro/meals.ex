@@ -95,7 +95,8 @@ defmodule GymBro.Meals do
   end
 
   def update_meal(%User{} = user, name, %Date{} = date, attrs) do
-    with {:ok, meal} <- get_meal(user, name, date) do
+    with {:ok, meal} <- get_meal(user, name, date),
+         :ok <- ensure_editable(meal) do
       attrs = stringify(attrs)
       ingredient_attrs = List.wrap(attrs["ingredients"])
 
@@ -117,6 +118,10 @@ defmodule GymBro.Meals do
           {:error, changeset}
       end
     end
+  end
+
+  defp ensure_editable(meal) do
+    if Meal.editable?(meal), do: :ok, else: {:error, :locked}
   end
 
   def delete_meal(%User{} = user, name, %Date{} = date) do
@@ -224,6 +229,32 @@ defmodule GymBro.Meals do
   end
 
   @doc """
+  Takes a natural-language meal description (e.g. "4 eggs with olive oil,
+  glass of OJ, half a cup of rice") and returns the same prefilled payload
+  as `analyze_photo/3`. No DB write — user reviews and saves via the normal
+  create_meal flow.
+  """
+  def analyze_text(%User{} = user, description) when is_binary(description) do
+    trimmed = String.trim(description)
+
+    cond do
+      trimmed == "" ->
+        {:error, :empty_description}
+
+      true ->
+        favorites = collect_favorites_for_hint(user)
+
+        with {:ok, parsed} <- Vision.analyze_text(trimmed, favorites: favorites) do
+          result = assemble_analysis_result(parsed)
+          analysis_id = AnalysisCache.put_text(user.id, trimmed, parsed)
+          {:ok, Map.put(result, :analysis_id, analysis_id)}
+        end
+    end
+  end
+
+  def analyze_text(_user, _), do: {:error, :empty_description}
+
+  @doc """
   Re-runs the analysis with user feedback applied. The image and previous
   analysis are looked up from the in-memory cache by `analysis_id`. Returns
   the same shape as analyze_photo/3, plus a `reply` string.
@@ -236,8 +267,16 @@ defmodule GymBro.Meals do
     with {:ok, entry} <- AnalysisCache.get(analysis_id, user.id) do
       next_history = history ++ [%{role: "user", text: message}]
 
-      with {:ok, parsed} <-
-             Vision.refine(entry.image_bytes, entry.media_type, entry.analysis, next_history) do
+      vision_result =
+        case Map.get(entry, :kind, :photo) do
+          :photo ->
+            Vision.refine(entry.image_bytes, entry.media_type, entry.analysis, next_history)
+
+          :text ->
+            Vision.refine_text(entry.description, entry.analysis, next_history)
+        end
+
+      with {:ok, parsed} <- vision_result do
         AnalysisCache.update_analysis(analysis_id, parsed)
         result = assemble_analysis_result(parsed)
 

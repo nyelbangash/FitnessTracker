@@ -168,6 +168,87 @@ defmodule GymBro.Meals.Vision do
   end
 
   @doc """
+  Analyzes a natural-language meal description and returns the same
+  structured log_meal payload as `analyze/3`. No image involved.
+
+  Examples of inputs this handles:
+    "4 eggs with olive oil, glass of orange juice, pound of chicken
+     breast, half a cup of instant rice, 6 toll house cookies"
+    "had a turkey sandwich with mayo and a coke"
+  """
+  def analyze_text(description, opts \\ []) when is_binary(description) do
+    api_key = System.get_env("ANTHROPIC_API_KEY")
+
+    if is_nil(api_key) do
+      {:error, :missing_api_key}
+    else
+      do_analyze_text(description, opts, api_key)
+    end
+  end
+
+  defp do_analyze_text(description, opts, api_key) do
+    favorites = Keyword.get(opts, :favorites, [])
+
+    favorites_block =
+      case favorites do
+        [] -> "(no saved favorites yet)"
+        list -> Enum.map_join(list, "\n", &"- #{&1}")
+      end
+
+    user_text = """
+    The user is describing a meal in natural language. Parse it into
+    structured items and estimate portion sizes in grams, then use the
+    log_meal tool to return the structured output.
+
+    User's description:
+    #{description}
+
+    User's favorite/quick-access meals (prefer these names when applicable):
+    #{favorites_block}
+
+    Notes for portion estimation:
+    - Convert volume measurements to weights (e.g., "1 cup of rice" ≈ 158g cooked).
+    - Convert imperial units (e.g., "1 pound" = ~454g).
+    - "A glass" of juice ≈ 240g. "A slice" of bread ≈ 30g.
+    - For branded items (e.g., "toll house cookies"), use a typical
+      serving weight per unit if you know it.
+    - Be honest about uncertainty — set confidence to "low" when the
+      portion is vague (e.g., "some" or "a little").
+    - Include cooking oil/butter only if the user mentioned them.
+    """
+
+    body = %{
+      "model" => @model,
+      "max_tokens" => 1024,
+      "tools" => [@tool],
+      "tool_choice" => %{"type" => "tool", "name" => "log_meal"},
+      "messages" => [
+        %{
+          "role" => "user",
+          "content" => [%{"type" => "text", "text" => user_text}]
+        }
+      ]
+    }
+
+    headers = [
+      {"x-api-key", api_key},
+      {"anthropic-version", @anthropic_version},
+      {"content-type", "application/json"}
+    ]
+
+    case Req.post(@endpoint, headers: headers, json: body, receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: %{"content" => content}}} ->
+        extract_tool_input(content)
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, {:upstream, status, body}}
+
+      {:error, reason} ->
+        {:error, {:transport, reason}}
+    end
+  end
+
+  @doc """
   Re-runs the analysis with the user's feedback applied. The image is the same
   as the initial analysis. `previous_analysis` is the last tool_use output we
   returned. `history` is the prior chat turns: a list of
@@ -213,6 +294,82 @@ defmodule GymBro.Meals.Vision do
       },
       %{"type" => "text", "text" => intro_text}
     ]
+
+    history_messages =
+      Enum.flat_map(history, fn
+        %{role: "user", text: text} ->
+          [%{"role" => "user", "content" => [%{"type" => "text", "text" => text}]}]
+
+        %{role: "assistant", text: text} ->
+          [%{"role" => "assistant", "content" => [%{"type" => "text", "text" => text}]}]
+
+        _ ->
+          []
+      end)
+
+    messages = [%{"role" => "user", "content" => initial_user_content} | history_messages]
+
+    body = %{
+      "model" => @model,
+      "max_tokens" => 1024,
+      "tools" => [@tool],
+      "tool_choice" => %{"type" => "tool", "name" => "log_meal"},
+      "messages" => messages
+    }
+
+    headers = [
+      {"x-api-key", api_key},
+      {"anthropic-version", @anthropic_version},
+      {"content-type", "application/json"}
+    ]
+
+    case Req.post(@endpoint, headers: headers, json: body, receive_timeout: 30_000) do
+      {:ok, %{status: 200, body: %{"content" => content}}} ->
+        extract_tool_input(content)
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, {:upstream, status, body}}
+
+      {:error, reason} ->
+        {:error, {:transport, reason}}
+    end
+  end
+
+  @doc """
+  Refines a text-based analysis with the user's feedback. The original
+  description is the same; `previous_analysis` is the last tool_use output.
+  """
+  def refine_text(description, previous_analysis, history)
+      when is_binary(description) and is_map(previous_analysis) and is_list(history) do
+    api_key = System.get_env("ANTHROPIC_API_KEY")
+
+    if is_nil(api_key) do
+      {:error, :missing_api_key}
+    else
+      do_refine_text(description, previous_analysis, history, api_key)
+    end
+  end
+
+  defp do_refine_text(description, previous_analysis, history, api_key) do
+    previous_json = Jason.encode!(previous_analysis)
+
+    intro_text = """
+    Here is the user's original meal description and the previous analysis
+    you returned:
+
+    DESCRIPTION:
+    #{description}
+
+    PREVIOUS ANALYSIS:
+    #{previous_json}
+
+    The user is now giving feedback to refine the estimate. Apply their
+    corrections to the analysis. Use the log_meal tool again with the full
+    updated payload — every field, not a patch — and populate `reply` with
+    a 1–2 sentence acknowledgement of what changed.
+    """
+
+    initial_user_content = [%{"type" => "text", "text" => intro_text}]
 
     history_messages =
       Enum.flat_map(history, fn

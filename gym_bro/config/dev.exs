@@ -18,8 +18,9 @@ config :gym_bro, GymBro.Repo,
 # to bundle .js and .css sources.
 # Binding to loopback ipv4 address prevents access from other machines.
 config :gym_bro, GymBroWeb.Endpoint,
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  # Bound to all interfaces so the iPhone (via LAN) can reach the dev backend.
+  # Lock back to {127, 0, 0, 1} if you ever run on an untrusted network.
+  http: [ip: {0, 0, 0, 0}, port: 4000],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
